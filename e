@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":92,"at":1795792790475,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"I updated SPEC so the delivery path never appears anywhere in the UI. It just works: the relay when it's up, GitHub when it isn't. Since no…"}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 8d9a878ffec6b40fbec26ff691cbf26f898b79364854aadd3c3c369374f4b1910f210ca615b4c77f97a731bb5dd1f039611f428c59f48c32140c233ea59db809
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":93,"at":1795793158347,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"O14: what skipping a login service means"}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 5165ff5af09e9ab421139b02c68e3cdf266a5bbec4a0cc6ba18ccc038b6a1751998c5a0b7c85b46dc5de0bd9307dcba2ea2f7e7caa8118646926e348f897c60d
