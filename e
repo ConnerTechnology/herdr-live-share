@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":47,"at":1795750698243,"login":"thomasconner","body":{"kind":"pushed","commits":[{"oid":"5f411e8bb54c140e5ac7149536caa5332ed48fdd","subject":"chore: release v0.1.18"}],"summary":"chore: release v0.1.18","to":"5f411e8bb54c140e5ac7149536caa5332ed48fdd"}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 194194b8b2ffcc0f240354faf9a5fc85e380f7a85733e16151395046a13a07dd7b46b1865c35424e1343f48f6af4a99808c02caf35f9e49d8f5fe008d8237e06
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":48,"at":1795750927031,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"working_on","path":"engine/src/listen.rs"}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 35903ae51a2062a8078520235ca636d534027360de1afe6795b183eab0ab4292f358a4642393979dd03c6e54ef7d0e2f99323a793d2cb08ba6f47943ea80b107
