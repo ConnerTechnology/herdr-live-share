@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":91,"at":1795792662604,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"working_on","path":"SPEC.md"}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 5be11eb6c130d1ea7c1c36c2dc9eea3c1a3ba9754009c723482ef35f64013817acfc7105956ec9a63bfd757c4a1c6ab290b6e419a86f43d1987b70aea162d10f
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":92,"at":1795792790475,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"I updated SPEC so the delivery path never appears anywhere in the UI. It just works: the relay when it's up, GitHub when it isn't. Since no…"}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 8d9a878ffec6b40fbec26ff691cbf26f898b79364854aadd3c3c369374f4b1910f210ca615b4c77f97a731bb5dd1f039611f428c59f48c32140c233ea59db809
