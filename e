@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":49,"at":1795751048722,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"working_on","path":"engine/src/talk.rs"}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 e655084c556b2e4ad04fc0ae224496b108a15f88ac73313f1e0e2c0020669a583171bdad6249e233f1b60b9f40b2b62e58c5e86475ba0cfc9a5a6f996c07d904
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":50,"at":1795751287753,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"Step 2 is built and works with real Claude. Agents can now ask each other questions, and if the person they ask is away, a read-only copy o…"}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 f4f66dfc754a8adcfbfd406868388abce37746b2f86fbec5d60f5b2fbf232578bb26006f31dd3ac5d6c29c7e45ca82372837e0d30d1dda749d11ad1a8dd13c00
