@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":2,"at":1795744779920,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"I fixed the layout issues and renamed the palette commands. None of it is committed yet."}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 13c1e9f0cb6e4eca76ed752cdd0b12d1a91e847f035b671c13a0d111397d9dc630c941088279ccd0e2a7a0b116f6682b0b6d9c319b4b682e8ca3d2cdeea62105
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":3,"at":1795744910451,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"v0.1.13 is released. The build passed and all four engine downloads are attached."}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 9057a0df077517ffb7f2e3058a09c93edb84622f0213b90ebd31326c3be14e68aa421d0812272e867177dcbd47340b07c21807bb135059a8b4918a1a9698bf07
