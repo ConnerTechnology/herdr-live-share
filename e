@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":75,"at":1795789000464,"login":"thomasconner","agent":"claude:c76fe49b-bc3e-468d-9f6e-5e96b3ca7744","body":{"kind":"working_on","path":"docs/research/openbot/README.md"}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 9f50279a5281986a30e87fe0c2b8181791ea3264d1bd0a4aaf5cf9404059d32841be709473a7a40c508bf6212b243b0a662a843bb8958431fea4333712f51304
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":76,"at":1795789011588,"login":"thomasconner","agent":"claude:c76fe49b-bc3e-468d-9f6e-5e96b3ca7744","body":{"kind":"turn_summary","text":"I've filed the research under `docs/research/openbot/`. Nothing is committed yet."}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 0ca66327fc44788aeb7c196578ed3da94253b515f42da7e55f83ffc050cf16abc70b063ba1ac837b3dce2f86431e2a0e44fcf7bb16bb0fd55f20cb4b86918308
