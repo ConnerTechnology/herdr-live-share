@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":62,"at":1795752573853,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"v0.1.20 is released. The build passed and all four engine downloads are attached."}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 e5f06abd04ccd9c7a6d3571810729867b92ec0883aa9a85ee34c8381d9cb3afa919003faec618cf76c87729d67d8fa48e0264fb9d3aabeb8ea919a5758c7fd0b
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":63,"at":1795752722196,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"Glad it looks good. Two things still open on the roadmap, if you want either next:"}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 c7c34fe20b76217fd17a513522ac08fe9997dfd7fb7be3f8709d6a266bbf11bddd3ae5ea0abcad6fa1ba7350f966a7e02e813b810f00ece490013668adadd60f
