@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":0,"at":1795735981444,"login":"thomasconner","body":{"kind":"opened","genesis":{"repo":"git@github.com:ConnerTechnology/herdr-live-share.git","branch":"main","owner":"thomasconner","created":1795735981444,"nonce":"35d371c3047aa667","settings":{"name":"Herdr Live Share","auto_close":false,"who_can_join":{"who":"anyone"}}}}}
-429c36c900395119d3f0247988e4b224f90cceec748532ad16e56f5609b63fae 7255a3f6ebe3bb77a1f40eff0a21b40f481b3720b230222c00cc30acff6c98bb774c1f495b7984db63c49f403a9c459edec55505e392ba793b5c4d585d1c1906
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":1,"at":1795736073047,"login":"thomasconner","body":{"kind":"closed"}}
+429c36c900395119d3f0247988e4b224f90cceec748532ad16e56f5609b63fae 092253df06ea02b6217bf4dbf69783c17f376d30225baf4a630839fbc77ea6fd98a796e3c61c3762eb15ac023560be6f2711cac388f27acf334302bc3032de04
