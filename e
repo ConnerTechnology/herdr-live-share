@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":28,"at":1795747183045,"login":"thomasconner","body":{"kind":"pushed","commits":[{"oid":"8e0372c4a44f4ac4d2b8e240326752314f2addf5","subject":"chore: release v0.1.16"}],"summary":"chore: release v0.1.16","to":"8e0372c4a44f4ac4d2b8e240326752314f2addf5"}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 d49cc958f0e331aa6a4d28c5effbac36e4909aae757fdc192e14bb8a5e7f9df6568d2fb46825fc07d81e6fa65c7303000e4bc9fea019f3d0432d1858cf3ce409
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":29,"at":1795747378573,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"v0.1.17 is released: the build passed and all four engine downloads are attached."}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 fd397a130669352117b9b0937caea5f56d5f346a3e5a6078080ebd931bdbe534470f8a35235a84db210d5ad3a8784f625abb5767b043226e200fd32a4bd43806
