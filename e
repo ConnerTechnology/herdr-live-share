@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":21,"at":1795746737796,"login":"thomasconner","body":{"kind":"settings_changed","patch":{"set":"who_can_join","who":{"who":"only","logins":["thomasconner"]}}}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 663abafdb3b465371d3342053dd746e8b018a8a69fe56859f60555d3144c26a8545188c517973a0feb3d4f8d8412f9042eaa7e21f6b2545ec2e917d18cde4207
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":22,"at":1795746741461,"login":"thomasconner","body":{"kind":"settings_changed","patch":{"set":"who_can_join","who":{"who":"anyone"}}}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 1d95909654adba32a9dd3b6260b182c94a5c31a9146f97ad0ebec9eaa93569ae15e53735befaa5ebd9b3376577707246b472b3272569d5689ffe9837a1133007
