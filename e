@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":16,"at":1795745664819,"login":"thomasconner","body":{"kind":"pushed","commits":[{"oid":"8a897f864a4b225e2c7e4794aca6d5006516f68a","subject":"fix: update every engine before replacing the mods"}],"summary":"fix: update every engine before replacing the mods","to":"8a897f864a4b225e2c7e4794aca6d5006516f68a"}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 a260176a9a859625178b01da0549f1ffb076e97380af55b81e44f45753cee0f561a92147496b4622cb2f411ca5560f19786ef9e439429d3ae8e16382f74ab007
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":17,"at":1795745666456,"login":"thomasconner","body":{"kind":"settings_changed","patch":{"set":"auto_close","on":true}}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 c78f850e16a68d22ee89827b384da3e54f7ad11063699f7d1a30e6f51259f92800ae14718ad227a71c6f9b6ef68bd073965e1ed78459882f50e7bc4836365009
