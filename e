@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":70,"at":1795788292856,"login":"thomasconner","agent":"claude:c76fe49b-bc3e-468d-9f6e-5e96b3ca7744","body":{"kind":"turn_summary","text":"The messaging-bridges reader is back. Two people's OpenBot agents can't meet in Slack, Discord or Telegram, for two reasons:"}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 27ee857592f2757155a6f63c70cfc460f5c244ecb5b202b0dca3292f5aca0fdd8a841ac14d74074629f9064be1f9d266c76921d22dfa618b0e93d65857376201
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":71,"at":1795788320920,"login":"thomasconner","agent":"claude:c76fe49b-bc3e-468d-9f6e-5e96b3ca7744","body":{"kind":"turn_summary","text":"The host-side reader is back and agrees with the transport reader on every point."}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 b2637c980626760ee40a6a2f3ea8077c98f47dbfeaa6086a5c9b720ab33f190c4c82caa3417acf8f94338fccc2f3eced83bbaffe10a3ef054321ac9943204c05
