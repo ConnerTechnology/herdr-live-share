@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":20,"at":1795746192425,"login":"thomasconner","body":{"kind":"pushed","commits":[{"oid":"4fe45d26043fedd6e11da00963e8b8157d43904f","subject":"chore: release v0.1.15"}],"summary":"chore: release v0.1.15","to":"4fe45d26043fedd6e11da00963e8b8157d43904f"}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 0f757c2817c779f045b0d1876cc141a1592d15ec62f07b4c9095f425b230c892c2329e2fa6977698e4fe557c4c6b507b8f974944e660fb1b10ffd6d2c5f8de0c
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":21,"at":1795746737796,"login":"thomasconner","body":{"kind":"settings_changed","patch":{"set":"who_can_join","who":{"who":"only","logins":["thomasconner"]}}}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 663abafdb3b465371d3342053dd746e8b018a8a69fe56859f60555d3144c26a8545188c517973a0feb3d4f8d8412f9042eaa7e21f6b2545ec2e917d18cde4207
