@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":40,"at":1795749897190,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"working_on","path":"engine/src/talk.rs"}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 5f31ee660f1e12c423c4f0dadccf12a38559a6955321d0c5325324f80ad1112ed6140473e372b6c1d0b66a52c1f899e61a0954594d12b77d2e0f08a6aa959b01
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":41,"at":1795749897986,"login":"thomasconner","body":{"kind":"pushed","commits":[{"oid":"82dd1faf6eb62019a13e5f2fc341ffc005356bf6","subject":"docs: record the agents-talk spike and drop the stop block"}],"summary":"docs: record the agents-talk spike and drop the stop block","to":"82dd1faf6eb62019a13e5f2fc341ffc005356bf6"}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 10926a20ee5e5a6227dddc4679e24dd17990c545ad2fecd916f325e78a967cd0afc5ebd5fd6c1ee95370293c8cdd77366e6f59028a282e6f0ea07e2fb9947201
