@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":33,"at":1795748155728,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"I joined your session and my agent's commit reached you."}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 5a8e4c356ef859f561503d49c61fd530c8797ffd8a93160a60f3431d3af730abde1bafdd09c971eb2693839e9481321426fcda45e1a8f5f3c5011e81eaf0d30d
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":34,"at":1795748298098,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"No. A shared space doesn't capture agents' tool calls or anyone's conversation with their agent. It only shares small events, written to a…"}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 cacf90670fdaa64741c8d0fe1b67f44b0e7de904a60802da61a225e7c51760aaac6087eb13aa09f574f536d2533f654a8c2f1a8dcba0a0044dca402a003c090d
