@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":24,"at":1795746747755,"login":"thomasconner","body":{"kind":"settings_changed","patch":{"set":"who_can_join","who":{"who":"anyone"}}}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 bc3157a3a1f66ee7d2488f5aaa4076bcaf68e7160a22784973f718162f60ea2de122086320d342715a84441605eb8e71d512088ecd0e3a0e8b89cf90f63e3f01
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":25,"at":1795746847276,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"I removed the \"Anyone with repo access\" row and the \"ONLY THESE PEOPLE\" heading. The menu is now the search field and then the list of peop…"}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 f136b47c8ef72718b6fa0e889d314d5de6b17406d120016241d87fc50fdae07711fc7ad059528dea7b867ccbadde87d605df68039010dbcad87d20c27a5f290e
