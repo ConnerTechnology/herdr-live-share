@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":93,"at":1795793158347,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"O14: what skipping a login service means"}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 5165ff5af09e9ab421139b02c68e3cdf266a5bbec4a0cc6ba18ccc038b6a1751998c5a0b7c85b46dc5de0bd9307dcba2ea2f7e7caa8118646926e348f897c60d
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":94,"at":1795793530136,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"SPEC now says the MVP has no default relay, and nothing in it is Cloudflare-specific. The edits are uncommitted."}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 64bbbe31337c8166f4e8cfaa43e1d17555d466469e3b06ecddb775e2b65bc25d88e461a480bafa638ed8399fe7e817ca1e83896322d3726fdc8eebf32a5fcc03
