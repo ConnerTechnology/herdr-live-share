@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":90,"at":1795792410140,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"Yes. If we drop \"no server of ours\", a relay is the better design, and the risk of GitHub throttling us is the right reason to want one. Bu…"}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 6829d7a2cd44f5d2d896062d99b5f8e098f58ced2a929b27aaa6d1ded548681ca2170aaa714f6677ad6b0a949966cdd174a3cd26984f0aba7fa8de5c92692f04
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":91,"at":1795792662604,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"working_on","path":"SPEC.md"}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 5be11eb6c130d1ea7c1c36c2dc9eea3c1a3ba9754009c723482ef35f64013817acfc7105956ec9a63bfd757c4a1c6ab290b6e419a86f43d1987b70aea162d10f
