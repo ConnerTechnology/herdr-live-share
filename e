@@ -1,2 +1,2 @@
-{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":84,"at":1795790604134,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"Here's the agenda for today:"}}
-ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 67eb3df64e836f1577f25f55e142d77573e5f95cd88257c67dfbd6048803db26e35882192a7d82892267172ee2a7fa8600b657ffa553ee52483436f344429b0b
+{"sid":"0abff741c12d3ff2638eb465e6ba249a","seq":85,"at":1795790905005,"login":"thomasconner","agent":"claude:5e24d989-9e89-4d68-b7e0-a45150ec2a0f","body":{"kind":"turn_summary","text":"Both research agents are still running: one is mapping what herdr-app and herdr-core expose, the other is checking whether anything can wak…"}}
+ce2207922fb140e4493469b75317daa1507c4e380d78aca68865e9a589e14ed5 37ee5176fff1a7ba71e329877b2e3a17c15a1d571ad7b58334bf5ef383936afd76933f9dfa571bf5870c2e47e3cff370fba6d9e20e1932834029ec7ab6c80501
