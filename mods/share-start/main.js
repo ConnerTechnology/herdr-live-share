@@ -17,7 +17,9 @@ export default class ShareStart extends View {
     if (checking()) return;
     cx.spawn(async (cx) => {
       await this.check(cx);
-      this.update = await availableUpdate();
+      const { update, note } = await availableUpdate(cx);
+      this.update = update;
+      this.updateNote = note;
       cx.notify();
     });
   }
@@ -94,6 +96,7 @@ export default class ShareStart extends View {
       .child(div().text_color(t.muted).child("Step 1: commit and push your work. Step 2: name the space and start."))
       .child(div().text_size(11).text_color(t.dim).child(`Not built yet. ${this.engine}`))
       .when(Boolean(this.update) && !this.busy, (el) => el.child(div().text_size(11).text_color(t.dim).child(`Version ${this.update} is available (you have ${VERSION}).`)))
+      .when(!this.update && Boolean(this.updateNote), (el) => el.child(div().text_size(11).text_color(t.dim).child(`Mods ${VERSION}. ${this.updateNote}`)))
       .child(
         h_flex().justify_end().gap(8)
           .when(Boolean(this.update) && !this.busy, (el) => el.child(button("update", `Update to ${this.update}`, true, (_e, cx) => this.updateEverything(cx))))

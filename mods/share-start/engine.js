@@ -72,33 +72,55 @@ export function newer(a, b) {
   return false;
 }
 
-/** The newest release ("0.2.0") when it is newer than these mods, else null.
+/** Whether a newer release exists: { update: "0.2.0" | null, note }.
  *  Asks GitHub each time a dialog opens, at most once per 10 minutes (cached in
- *  shared("share.latest") for all share mods). Tries herdr-app's fetch, then curl
- *  on this computer. Only a successful answer is cached. Never throws. */
-export async function availableUpdate() {
+ *  shared("share.latest") for all share mods). Tries herdr-app's fetch (capped
+ *  at 8 s), then curl on this computer. Only a successful answer is cached.
+ *  `note` says what happened, for the dialog. Never throws. */
+export async function availableUpdate(cx) {
   let latest = shared("share.latest");
+  let note;
   if (!latest || Date.now() - latest.at > RECHECK) {
-    const tag = (await latestTag()) ?? null;
-    if (tag) {
-      latest = { tag, at: Date.now() };
+    const r = await latestTag(cx);
+    if (r.tag) {
+      latest = { tag: r.tag, at: Date.now() };
       setShared("share.latest", latest);
+      note = `Latest release ${r.tag} (checked with ${r.via}).`;
+    } else {
+      note = `Could not check for updates: ${r.error}`;
     }
+  } else {
+    note = `Latest release ${latest.tag}.`;
   }
-  return latest?.tag && newer(latest.tag, VERSION) ? latest.tag : null;
+  const update = latest?.tag && newer(latest.tag, VERSION) ? latest.tag : null;
+  return { update, note };
 }
 
-async function latestTag() {
+async function latestTag(cx) {
   const parse = (text) => String(JSON.parse(text).tag_name ?? "").replace(/^v/, "") || null;
+  const errors = [];
   try {
-    const r = await fetch(RELEASES, { headers: { accept: "application/vnd.github+json" } });
-    if (r.ok) return parse(await r.text());
-  } catch {}
+    const timeout = cx.sleep(8_000).then(() => { throw new Error("timed out"); });
+    const r = await Promise.race([fetch(RELEASES, { headers: { accept: "application/vnd.github+json", "user-agent": "herdr-live-share" } }), timeout]);
+    if (r.ok) {
+      const tag = parse(await r.text());
+      if (tag) return { tag, via: "fetch" };
+    }
+    errors.push(`fetch ${r.status}`);
+  } catch (e) {
+    errors.push(`fetch ${e?.message ?? e}`);
+  }
   try {
     const out = await exec("curl", ["-fsSL", "-H", "accept: application/vnd.github+json", RELEASES], { timeout: 15_000 });
-    if (out.code === 0) return parse(out.stdout);
-  } catch {}
-  return null;
+    if (out.code === 0) {
+      const tag = parse(out.stdout);
+      if (tag) return { tag, via: "curl" };
+    }
+    errors.push(`curl exit ${out.code} ${(out.stderr || "").trim().slice(0, 80)}`);
+  } catch (e) {
+    errors.push(`curl ${e?.message ?? e}`);
+  }
+  return { error: errors.join("; ") };
 }
 
 /** Update everything from the computer running herdr-app: the mods here (they hot-reload)
