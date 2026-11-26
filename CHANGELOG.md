@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+## 0.1.1 (2026-11-26)
+
 - Share dialogs offer **Update to <version>** when a newer release exists, and **Update on <machine>** when a machine's engine is older than the mods. Nothing updates without a click.
 - `scripts/release` bumps the version everywhere, tags and pushes; release notes come from this file.
 - The installer replaces the engine with an atomic rename, so a Claude hook that is running during an update finishes on the old version.
