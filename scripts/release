@@ -28,7 +28,13 @@ if [ -z "$notes" ]; then
 fi
 
 sed -i.bak "0,/^version = \".*\"/s//version = \"$new\"/" engine/Cargo.toml && rm engine/Cargo.toml.bak
-awk -v v="$new" -v d="$(date +%Y-%m-%d)" '/^## Unreleased/{print; print ""; print "## " v " (" d ")"; next} {print}' CHANGELOG.md > CHANGELOG.md.new
+# Keep the last $KEEP releases here; older ones live on GitHub (see the file's footer).
+KEEP=5
+awk -v v="$new" -v d="$(date +%Y-%m-%d)" -v keep="$KEEP" '
+  /^## Unreleased/ { print; print ""; print "## " v " (" d ")"; n = 1; next }
+  /^## [0-9]/      { n++; skip = (n > keep); if (skip) next }
+  /^## Older releases/ { skip = 0 }
+  !skip' CHANGELOG.md > CHANGELOG.md.new
 mv CHANGELOG.md.new CHANGELOG.md
 for f in mods/*/engine.js; do
   sed -i.bak "s/^export const VERSION = \".*\";/export const VERSION = \"$new\";/" "$f" && rm "$f.bak"
