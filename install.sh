@@ -58,7 +58,10 @@ install_engine() {
   asset="herdr-session-$os-$arch.tar.gz"
   run mkdir -p "$BIN_DIR"
   if [ -n "$tag" ] && curl -fsSL -o "$tmp/$asset" "https://github.com/$REPO/releases/download/$tag/$asset" 2>/dev/null; then
-    run tar -xzf "$tmp/$asset" -C "$BIN_DIR" herdr-session
+    # Extract beside it, then rename: a running hook keeps the old file, the next one gets the new.
+    run tar -xzf "$tmp/$asset" -C "$tmp" herdr-session
+    run cp "$tmp/herdr-session" "$BIN_DIR/.herdr-session.new"
+    run mv -f "$BIN_DIR/.herdr-session.new" "$BIN_DIR/herdr-session"
   else
     # rustup's tools first: herdr-core's exec PATH lacks ~/.cargo/bin, and an old
     # system rustc in /usr/bin would otherwise be used by cargo.
