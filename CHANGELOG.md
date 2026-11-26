@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+## 0.1.4 (2026-11-26)
+
 - The update check sends a `User-Agent`, which GitHub's API requires (requests without one get 403), gives up on herdr-app's request after 8 seconds and tries `curl`, and shows its result in the dialog ("Latest release 0.1.4 (checked with fetch)" or why it failed).
 
 ## 0.1.3 (2026-11-26)
