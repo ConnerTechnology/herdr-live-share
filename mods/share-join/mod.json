@@ -1,0 +1,3 @@
+{ "place": "none", "title": "Join a space",
+  "overlay": { "kind": "dialog", "modal": true, "width": 480 },
+  "palette": [{ "title": "Join a space", "command": "mod.open", "args": { "name": "share-join" }, "group": "Share", "words": "live share join link" }] }

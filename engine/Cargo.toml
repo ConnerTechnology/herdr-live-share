@@ -1,0 +1,13 @@
+[package]
+name = "herdr-session"
+version = "0.1.0"
+edition = "2021"
+description = "Engine for herdr live share: the session ledger, sync, and Claude hooks"
+license = "MIT"
+
+[[bin]]
+name = "herdr-session"
+path = "src/main.rs"
+
+[dependencies]
+serde_json = "1"

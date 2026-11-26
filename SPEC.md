@@ -282,7 +282,7 @@ Fallback if Can says no to a generic contribution point: a one-line edit that ad
 | Ask | Why | If Can says no |
 |---|---|---|
 | Ship the four share mods in `defaults/mods/` and add `{mod:"share-activity"}` to `main.json`'s `panel` stack | Docks Activity as a real side panel (a shipped-layout change, not app code) | Kept Activity window; on personal layouts `place:"right"` docks it |
-| `space.ensure` app command: create an empty, caller-id'd space with no terminal | Literal "joining does not open a tab" | `space.new {folder, name, focus:false}` creates the space with one shell tab that is not shown (Claude is not started). Unverified whether a space can hold zero tabs. |
+| `space.ensure` app command: create an empty, caller-id'd space with no terminal | Literal "joining does not open a tab" | `space.new {folder, name, focus:false}` creates the space with one shell tab that is not shown (Claude is not started). A space cannot hold zero tabs (spike: `model.rs` `remove_tab` closes a space with its last tab). |
 
 We do not ship layout clones.
 
@@ -397,7 +397,7 @@ pub enum Error { NotARepo, NotOwner, Closed, Git(String), GitHub(String), Io(Str
 // ---- Claude boundary ----
 pub enum HookEvent { SessionStart, Prompt, PreEdit, Stop, SessionEnd }
 pub struct HookInput { agent: AgentId, cwd: PathBuf, term: Option<TermAddr>, source: Option<String>, tool_path: Option<PathBuf>, transcript: Option<PathBuf> }
-pub enum HookReply { Silent, Context(String), DenyOnce { reason: String } }
+pub enum HookReply { Silent, Context(String) }   // PreToolUse uses Context too (verified in the spike)
 ```
 
 Every subcommand prints one envelope, `{"api":1,"ok":true,"value":…}` or `{"api":1,"ok":false,"error":{"kind":"NotOwner","message":"…"}}`, exit 0 in both cases (nonzero means the engine itself broke). `hook` prints only what Claude expects. The mods see about ten verbs and domain JSON.
@@ -444,7 +444,7 @@ Pull before you edit: git pull --rebase. Commits you make are pushed after your 
 To tell the others: herdr-session say task|done|decision|chat "<one line>"
 ```
 
-**Heads-up before an edit.** `pre-edit` returns `DenyOnce { reason }`: "Heads-up: Ryan's agent is editing query_builder.py (2 min ago). Coordinate or retry the edit to proceed." The engine records it so the same agent's next edit of that path within 10 minutes is allowed silently. Deny-once is chosen because delivery of a deny reason to the model is certain; if `PreToolUse` `additionalContext` works in supported Claude versions, prefer it and drop the extra attempt (**Unverified**, spike first). Claims are advisory and expiring; this is not a distributed file lock.
+**Heads-up before an edit.** `pre-edit` returns `Context` through `PreToolUse` `hookSpecificOutput.additionalContext`: "Heads-up: Ryan's agent is editing query_builder.py (2 min ago). Coordinate before you change it." The edit is not blocked and the model sees the text (verified in the spike, Claude Code 2.1.332). One heads-up per agent per path per 10 minutes. Claims are advisory and expiring; this is not a distributed file lock.
 
 **Push after each turn.** `drain` (detached with `setsid`, stdio to `~/.herdr/session/logs/drain.log`, holds the clone's flock): `git pull --rebase --autostash` on the shared branch; on conflict `git rebase --abort` and append `Conflict{files}`; otherwise `git push`, append `Pushed{commits, summary: subjects}`; detect a non-fast-forward upstream (`BranchRewritten`); finally push the device's own stream ref. The next `prompt` hook waits for the flock (≤ 5 s) so an agent never starts editing during a rebase. A conflict reaches the agent on its next turn.
 
@@ -553,19 +553,31 @@ Decisions for you:
 - **O9. Turn summaries from transcripts.** The first line of the last assistant message may include things not meant for teammates. Opt-out per space, or commit subjects only in v1?
 - **O10. Automatic rebase and push** after each turn with `--autostash`, even while the person edits the same checkout by hand. Is that the intended "keep in sync"?
 - **O11. Engine distribution.** Who ships `herdr-session`? The spec assumes a binary on PATH (or a path recorded in hooks) with `doctor`; Can may prefer it ship with the app.
-- **O12. "Does NOT open a tab".** Without `space.ensure`, the joined space has one hidden shell tab. Intended reading?
+- **O12. "Does NOT open a tab".** A herdr space always has at least one tab (spike). v1 default: the joined space is created with `focus:false` and one plain shell tab; it is not shown and Claude is not started. Literal zero tabs needs a core change (`space.ensure`), not planned.
 
-Risks: hook latency on every Claude turn on the machine (shared or not), measured before shipping; deny-once heads-up adds one extra tool attempt; `share.unread` is only fresh while the Activity window is alive; a separate blobless clone per joined repo instead of finding the user's existing clone; four copies of `engine.js`.
+Risks: hook latency on every Claude turn on the machine (shared or not), measured before shipping; `share.unread` is only fresh while the Activity window is alive; a separate blobless clone per joined repo instead of finding the user's existing clone; four copies of `engine.js`.
 
 **Unverified:**
-- Claude Code's `PreToolUse` deny reason reaching the model, and whether `PreToolUse` `additionalContext` exists in current versions.
-- That hook processes inherit `HC_TERMINAL_ID`.
-- That `hc label <t> key=` (empty value) clears a label.
+- (Verified in the spike below: hook `additionalContext` for all three events, `HC_TERMINAL_ID` in hooks, `hc label` clear, `refs/herdr/*` pushes to this org repo.)
 - That `watchFolder` on `~/.herdr/session/ticks` (outside any repo) behaves as on other home folders.
-- GitHub accepting `refs/herdr/*` pushes under the org's rules; `gh` installed for both people; `ssh-keygen -Y sign` against an agent key; fetching keys from `github.com/<user>.keys`.
+- Rulesets on other org repos for `refs/herdr/*`; `gh` installed for both people; `ssh-keygen -Y sign` against an agent key; fetching keys from `github.com/<user>.keys`.
 - A detached child started by a Claude hook surviving the hook's process group being killed on timeout (hence `setsid`).
-- Whether a herdr space can hold zero tabs (`space.ensure`).
 - The repo name `joindeleterepo` is treated as an opaque remote.
+
+### Spike results (2026-11-26)
+
+| Item | Result | How checked |
+|---|---|---|
+| `SessionStart` / `UserPromptSubmit` `additionalContext` reaches the model | Yes | `claude -p --settings` with test hooks, Claude Code 2.1.332 (haiku) |
+| `PreToolUse` `additionalContext` reaches the model without blocking | Yes. The heads-up uses it; deny-once is dropped | same |
+| `PreToolUse` deny reason reaches the model; retry succeeds | Yes (kept as an option, not used) | same |
+| Hook processes inherit `HC_TERMINAL_ID` | Yes | hook log showed `HC=t25` |
+| A `setsid` child spawned by a `Stop` hook outlives the hook | Yes (normal exit; not tested with a timeout kill) | marker file written 4 s after the hook returned |
+| `hc label <t> key=` clears a label | Yes | `hc get` before and after |
+| Push `refs/herdr/*` to a ConnerTechnology GitHub repo | Yes (this repo; other repos' rulesets unchecked) | push, `ls-remote`, delete |
+| A space can hold zero tabs | No | herdr-app `src/model.rs` `remove_tab` |
+
+Still unverified: `watchFolder` outside a repo, `ssh-keygen -Y sign` with an agent key, a hook child surviving a timeout kill, rulesets on other org repos.
 
 ## Roadmap
 

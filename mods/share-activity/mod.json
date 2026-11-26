@@ -1,0 +1,3 @@
+{ "place": "none", "title": "Activity",
+  "overlay": { "kind": "window", "key": "share-activity", "keep": true, "width": 360, "height": 0.8 },
+  "palette": [{ "title": "Activity", "command": "mod.open", "args": { "name": "share-activity" }, "group": "Share", "words": "live share timeline feed" }] }
