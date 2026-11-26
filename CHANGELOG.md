@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+## 0.1.8 (2026-11-26)
+
 - Space settings always shows the settings under **Share this space**. While sharing is off, including before the first share, they're greyed out to 45% and disabled.
 
 ## 0.1.7 (2026-11-26)
@@ -29,10 +31,6 @@ What changed in the most recent releases, for the people who install them. `scri
 ## 0.1.4 (2026-11-26)
 
 - The update check sends a `User-Agent`, which GitHub's API requires (requests without one get 403), gives up on herdr-app's request after 8 seconds and tries `curl`, and shows its result in the dialog ("Latest release 0.1.4 (checked with fetch)" or why it failed).
-
-## 0.1.3 (2026-11-26)
-
-- The update check runs each time a share dialog opens (at most every 10 minutes) instead of once a day, and falls back to `curl` when herdr-app's own request fails. Install this release with the install line once; later releases arrive through **Update to …**.
 
 ## Older releases
 
