@@ -1,0 +1,31 @@
+#!/bin/sh
+# Releases a new version: scripts/release 0.2.0
+# Sets the version in engine/Cargo.toml and every mod's engine.js, runs the checks,
+# commits, tags v<version> and pushes. The tag starts .github/workflows/release.yml,
+# which builds the engine binaries and publishes the GitHub release. Installed copies
+# see it the next time a share dialog opens and offer "Update to <version>".
+set -eu
+cd "$(dirname "$0")/.."
+new="${1:-}"
+echo "$new" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "usage: scripts/release <x.y.z>"; exit 2; }
+[ "$(git branch --show-current)" = main ] || { echo "release from main"; exit 1; }
+[ -z "$(git status --porcelain)" ] || { echo "commit or stash your changes first"; exit 1; }
+git fetch -q origin main
+[ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || { echo "main is not in sync with origin/main"; exit 1; }
+old=$(sed -n 's/^version = "\(.*\)"/\1/p' engine/Cargo.toml | head -n 1)
+[ "$(printf '%s\n%s\n' "$old" "$new" | sort -V | tail -n 1)" = "$new" ] && [ "$old" != "$new" ] \
+  || { echo "$new is not newer than $old"; exit 1; }
+git rev-parse -q --verify "refs/tags/v$new" >/dev/null && { echo "tag v$new exists"; exit 1; }
+
+sed -i.bak "0,/^version = \".*\"/s//version = \"$new\"/" engine/Cargo.toml && rm engine/Cargo.toml.bak
+for f in mods/*/engine.js; do
+  sed -i.bak "s/^export const VERSION = \".*\";/export const VERSION = \"$new\";/" "$f" && rm "$f.bak"
+done
+cargo=$(command -v cargo || echo "$HOME/.cargo/bin/cargo")
+PATH="$HOME/.cargo/bin:$PATH" "$cargo" build --quiet   # updates Cargo.lock
+scripts/check
+git add -A
+git commit -q -m "chore: release v$new"
+git tag "v$new"
+git push -q origin main "v$new"
+echo "Released v$new. Watch the build: gh run list --workflow release.yml --limit 1"

@@ -36,4 +36,4 @@ Then open the command palette in herdr-app and run **Share this space** or **Joi
 
 ## Develop
 
-`scripts/install --mods` links the mods from this checkout, so edits hot-reload. `scripts/install --engine` builds the engine into `~/.local/bin`. `scripts/check` runs every check.
+`scripts/install --mods` links the mods from this checkout, so edits hot-reload. `scripts/install --engine` builds the engine into `~/.local/bin`. `scripts/check` runs every check. `scripts/release <x.y.z>` bumps the version everywhere, tags and pushes; the tag builds the release. Installed copies offer **Update to <x.y.z>** the next time a share dialog opens.

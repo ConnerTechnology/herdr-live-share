@@ -1,40 +1,67 @@
 // Share this space: placeholder view (scaffold). The real screen is specified in
-// SPEC.md section 5.2; this one proves the palette entry, overlay and engine
-// call work end to end before any logic exists.
+// SPEC.md section 5.2; this one proves the palette entry, overlay, engine call,
+// install and update work end to end before any logic exists.
 import { View, div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { props, closeOverlay, theme, checking } from "herdr";
-import { engine, installEngine, shownSpace, machineName } from "./engine.js";
+import { engine, installEngine, availableUpdate, updateAll, newer, shownSpace, machineName, VERSION } from "./engine.js";
 
 export default class ShareSettings extends View {
   init(_props, cx) {
     this.handle = cx.focus_handle();
     this.handle.focus();
     this.engine = "Checking the engine…";
+    this.fix = null;      // "install" | "update-engine": the engine on the space's machine needs it
+    this.update = null;   // a newer release, offered and never installed without a click
+    this.busy = false;
     if (checking()) return;
     cx.spawn(async (cx) => {
       await this.check(cx);
+      this.update = await availableUpdate();
+      cx.notify();
     });
   }
 
   async check(cx) {
     this.on = shownSpace()?.machine ?? null;
     const r = await engine(["version"], { on: this.on });
-    this.missing = !r.ok && r.error.kind === "Missing";
-    this.engine = r.ok ? `herdr-session ${r.value.version} (api ${r.value.api}) on ${machineName(this.on)}.` : r.error.message;
+    const where = machineName(this.on);
+    if (r.ok && newer(VERSION, r.value.version)) {
+      this.fix = "update-engine";
+      this.engine = `herdr-session ${r.value.version} on ${where} is older than these mods (${VERSION}).`;
+    } else if (r.ok) {
+      this.fix = null;
+      this.engine = `herdr-session ${r.value.version} (api ${r.value.api}) on ${where}.`;
+    } else {
+      this.fix = r.error.kind === "Missing" ? "install" : null;
+      this.engine = r.error.message;
+    }
     cx.notify();
   }
 
-  /** Engine missing on the space's machine: install it there, then check again. */
-  install(cx) {
-    this.installing = true;
+  /** Engine missing or older on the space's machine: install it there, then check again. */
+  installHere(cx) {
+    this.busy = true;
     this.engine = `Installing herdr-session on ${machineName(this.on)}…`;
     cx.notify();
     cx.spawn(async (cx) => {
       const r = await installEngine(this.on);
-      this.installing = false;
+      this.busy = false;
       if (r.ok) await this.check(cx);
       else { this.engine = r.error.message; cx.notify(); }
+    });
+  }
+
+  /** A newer release: update the mods here and the engine everywhere. The mods hot-reload when it lands. */
+  updateEverything(cx) {
+    this.busy = true;
+    this.engine = `Updating to ${this.update}…`;
+    cx.notify();
+    cx.spawn(async (cx) => {
+      const r = await updateAll();
+      this.busy = false;
+      this.engine = r.ok ? `Updated to ${this.update}.` : r.error.message;
+      cx.notify();
     });
   }
 
@@ -44,6 +71,11 @@ export default class ShareSettings extends View {
 
   render(cx) {
     const t = theme();
+    const button = (id, label, primary, onClick) =>
+      h_flex().id(id).h(32).px(14).items_center().rounded(8)
+        .bg(primary ? t.solid : t.raised).text_color(primary ? t.solid_foreground : t.foreground)
+        .cursor_pointer().hover((s) => s.opacity(0.88)).on_click(onClick).child(label);
+    const fixLabel = this.fix === "install" ? `Install on ${machineName(this.on)}` : `Update on ${machineName(this.on)}`;
     return v_flex()
       .id("share-settings")
       .track_focus(this.handle)
@@ -61,17 +93,12 @@ export default class ShareSettings extends View {
       .child(div().text_size(15).font_semibold().text_color(t.foreground).child("Share this space"))
       .child(div().text_color(t.muted).child("Let people join this space. Settings: name, auto-close, who can join, link."))
       .child(div().text_size(11).text_color(t.dim).child(`Not built yet. ${this.engine}`))
+      .when(Boolean(this.update) && !this.busy, (el) => el.child(div().text_size(11).text_color(t.dim).child(`Version ${this.update} is available (you have ${VERSION}).`)))
       .child(
         h_flex().justify_end().gap(8)
-          .when(this.missing && !this.installing, (el) => el.child(
-            h_flex().id("install").h(32).px(14).items_center().rounded(8).bg(t.solid).text_color(t.solid_foreground)
-              .cursor_pointer().hover((s) => s.opacity(0.88)).on_click((_e, cx) => this.install(cx))
-              .child(`Install on ${machineName(this.on)}`),
-          ))
-          .child(
-          h_flex().id("close").h(32).px(14).items_center().rounded(8).bg(t.raised).text_color(t.foreground)
-            .cursor_pointer().hover((s) => s.opacity(0.88)).on_click(() => this.close()).child("Close"),
-        ),
+          .when(Boolean(this.update) && !this.busy, (el) => el.child(button("update", `Update to ${this.update}`, true, (_e, cx) => this.updateEverything(cx))))
+          .when(Boolean(this.fix) && !this.update && !this.busy, (el) => el.child(button("fix", fixLabel, true, (_e, cx) => this.installHere(cx))))
+          .child(button("close", "Close", false, () => this.close())),
       );
   }
 }

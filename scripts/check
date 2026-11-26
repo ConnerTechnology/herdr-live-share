@@ -8,5 +8,8 @@ for m in mods/*/; do
     echo "engine.js differs: $m (copy $first to every mod)"; exit 1; fi
   herdr-app check "$m" 2>&1 | grep -E '^(check passed|error|Error)' || { echo "check failed: $m"; exit 1; }
 done
+engine_version=$(sed -n 's/^version = "\(.*\)"/\1/p' engine/Cargo.toml | head -n 1)
+mods_version=$(sed -n 's/^export const VERSION = "\(.*\)";/\1/p' "$first")
+[ "$engine_version" = "$mods_version" ] || { echo "version mismatch: engine/Cargo.toml $engine_version, engine.js $mods_version"; exit 1; }
 cargo=$(command -v cargo || echo "$HOME/.cargo/bin/cargo")
 if [ -x "$cargo" ]; then "$cargo" test --quiet; else echo "cargo not installed: engine not checked"; fi

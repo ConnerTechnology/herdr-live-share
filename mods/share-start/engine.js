@@ -3,7 +3,7 @@
 //
 // The engine runs on the machine that holds the space's repo, which is often
 // not the machine running herdr-app: every call goes through exec's `on`.
-import { exec, machines, spaces } from "herdr";
+import { exec, machines, spaces, shared, setShared } from "herdr";
 
 export const API = 1;
 
@@ -56,5 +56,48 @@ export async function installEngine(on = null) {
     return { ok: false, error: { kind: "Install", message: (out.stderr || out.stdout || "").trim().split("\n").slice(-2).join(" ") } };
   } catch {
     return { ok: false, error: { kind: "Unreachable", message: `Can't reach ${machineName(on)}.` } };
+  }
+}
+
+/** This release of the mods. scripts/release keeps it equal to engine/Cargo.toml. */
+export const VERSION = "0.1.0";
+
+const RELEASES = "https://api.github.com/repos/ConnerTechnology/herdr-live-share/releases/latest";
+const DAY = 86_400_000;
+
+/** a > b for "x.y.z" versions. */
+export function newer(a, b) {
+  const pa = a.split(".").map(Number), pb = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pa[i] ?? 0) > (pb[i] ?? 0);
+  return false;
+}
+
+/** The newest release ("0.2.0") when it is newer than these mods, else null.
+ *  Asks GitHub at most once a day, cached in shared("share.latest") for all share mods. Never throws. */
+export async function availableUpdate() {
+  let latest = shared("share.latest");
+  if (!latest || Date.now() - latest.at > DAY) {
+    try {
+      const r = await fetch(RELEASES, { headers: { accept: "application/vnd.github+json" } });
+      if (!r.ok) return null;
+      const tag = String((await r.json()).tag_name ?? "").replace(/^v/, "");
+      latest = { tag, at: Date.now() };
+      setShared("share.latest", latest);
+    } catch {
+      return null;
+    }
+  }
+  return latest.tag && newer(latest.tag, VERSION) ? latest.tag : null;
+}
+
+/** Update everything from the computer running herdr-app: the mods here (they hot-reload)
+ *  and the engine on every connected machine. Runs only when the person clicks Update. Never throws. */
+export async function updateAll() {
+  try {
+    const out = await exec("sh", ["-c", `curl -fsSL '${INSTALL}' | sh`], { timeout: 600_000 });
+    if (out.code === 0) return { ok: true };
+    return { ok: false, error: { kind: "Install", message: (out.stderr || out.stdout || "").trim().split("\n").slice(-2).join(" ") } };
+  } catch {
+    return { ok: false, error: { kind: "Install", message: "Could not run the installer on this computer." } };
   }
 }

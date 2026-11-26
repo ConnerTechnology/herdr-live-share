@@ -601,6 +601,15 @@ Risks: hook latency on every Claude turn on the machine (shared or not), measure
 
 Still unverified: `watchFolder` outside a repo, `ssh-keygen -Y sign` with an agent key, a hook child surviving a timeout kill, rulesets on other org repos.
 
+## Releases and updates
+
+- **Releasing.** `scripts/release <x.y.z>` sets the version in `engine/Cargo.toml` and in every mod's `engine.js` (`VERSION`), runs `scripts/check` (which fails if they disagree), commits, tags `v<x.y.z>` and pushes. The tag runs `.github/workflows/release.yml`: engine binaries for Linux and macOS (x86_64, arm64) on a GitHub release.
+- **Installing and updating are the same command.** `install.sh` always takes the latest release for both the mods and the engine.
+- **Updates wait for a click (Thomas).** When a share dialog opens, it asks GitHub for the latest release at most once a day (cached in `shared("share.latest")` for all four mods). If it is newer than `VERSION`, the dialog shows "Version 0.2.0 is available" and **Update to 0.2.0**. The click runs the installer on the herdr-app computer: the mods are replaced and hot-reload, and the engine is updated on every connected machine. Nothing updates without the click.
+- **A machine that missed an update.** If the engine on the space's machine is older than the mods (it was offline during the update), the dialog shows **Update on <machine>**, which installs the matching engine there. A missing engine shows **Install on <machine>**.
+- **Claude hooks need nothing.** They call `~/.local/bin/herdr-session` by absolute path, and the installer replaces the binary with an atomic rename, so the next hook runs the new version and a running hook finishes on the old one.
+- **Mixed versions in one session are normal** (Thomas on 0.3, Ryan on 0.2 for a week). Rules: a release may add ledger event types and fields, never change or remove one; an older engine's `fold` skips event types it does not know and shows nothing for them. The mods-to-engine envelope `api` changes only for a breaking protocol change; on a mismatch the dialog offers the update and does nothing else.
+
 ## Roadmap
 
 - **v1:** this document.
