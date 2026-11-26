@@ -2,15 +2,7 @@
 //! Exit 0 for both ok and error envelopes; nonzero means the engine itself broke.
 //! `hook <event>` is the exception: it prints only what Claude Code expects.
 
-mod api;
-mod claude;
-mod drain;
-mod git;
-mod github;
-mod ledger;
-mod store;
-mod view;
-
+use herdr_session::claude;
 use serde_json::{json, Value};
 use std::io::Read;
 
@@ -24,9 +16,17 @@ fn main() {
         // Infallible by design: whatever happens, Claude gets valid output and exit 0.
         let mut input = String::new();
         let _ = std::io::stdin().read_to_string(&mut input);
-        let event = args.get(1).and_then(|e| claude::HookEvent::parse(e));
-        if let Some(out) = event.and_then(|e| claude::hook(e, &input)) {
-            println!("{out}");
+        let Some(event) = args.get(1).and_then(|e| claude::HookEvent::parse(e)) else { return };
+        let reply = claude::hook(event, &input);
+        if let Some(out) = &reply.out {
+            use std::io::Write;
+            let mut stdout = std::io::stdout();
+            if writeln!(stdout, "{out}").and_then(|_| stdout.flush()).is_err() {
+                return; // Claude did not get it: keep the cursor where it was
+            }
+        }
+        if let Some(after) = reply.after {
+            after();
         }
         return;
     }

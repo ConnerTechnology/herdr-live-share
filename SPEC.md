@@ -110,16 +110,19 @@ Question, Handoff and Conflict render as ordinary Timeline events in v1.
 ### 3.3 Module map
 
 ```
-herdr-session/                      Rust crate + binary
-  src/main.rs      argv → Command → api::* → one JSON envelope on stdout     (boundary)
-  src/api.rs       public surface; every fn idempotent
-  src/ledger.rs    Event, Body, Stream, Verified<T>, fold() (pure)
-  src/view.rs      timeline(), digest(), unread(), heads_up(), join_checks()  (pure)
-  src/git.rs       refs, quarantine fetch, push own ref, pull --rebase, worktree add (shell)
-  src/github.rs    gh auth / user / repo permission / collaborators (shell)
-  src/claude.rs    HookInput parse, HookReply render, settings.json merge     (boundary)
-  src/store.rs     per-clone dir, bindings, cursors, outbox, flock, fetch stamp, tick file
-  src/drain.rs     detached child: pull --rebase, push branch, push own stream; exits when done
+engine/                             Rust crate herdr-session: library + binary
+  src/main.rs      argv → verb → one JSON envelope on stdout; `hook <event>` prints Claude's JSON  (boundary)
+  src/ledger.rs    Event, Body, signed blobs, verify, fold (pure)                    [built]
+  src/view.rs      digest, unread (pure)                                             [built]
+  src/git.rs       Checkout::discover, stream read/append (CAS), fetch, push, timeouts [built]
+  src/session.rs   device key, bindings, cursors, open, append, sync, load           [built]
+  src/claude.rs    hook stdin → Reply; SessionStart and UserPromptSubmit built; PreToolUse, Stop, SessionEnd silent
+  later: github.rs (gh), drain.rs (detached push after a turn), api for start/join/change/status/timeline
+
+Wire format: each event is one commit on `refs/herdr/s/<code>/m/<device-tag>` (parent = previous event,
+author/date fixed at herdr/@0) with one blob `e`: the event's JSON on the first line, then
+"<ed25519 pk hex> <signature hex>". The signature covers the first line's exact bytes, so an event kind
+this release does not know still verifies and decodes as `Unknown`. Fetches land in `refs/herdr-seen/<code>/`.
 
 ~/.config/herdr-app/mods/            (or shipped in defaults/mods/ if Can agrees)
   share-settings/  main.js  engine.js  picker.js  mod.json
@@ -619,7 +622,7 @@ Still unverified: `watchFolder` outside a repo, `ssh-keygen -Y sign` with an age
 ## Implementation order
 
 1. **Spike (a day):** the three unverified Claude hook behaviors, a push of `refs/herdr/*` to the real org remote, `hc label` clear, and whether a space can hold zero tabs.
-2. `ledger::fold` with the `Body`/`ItemKind` split and its order-independence property test; then `view::digest` and `hook prompt` against the two-device `file://` fixture. No mod code yet.
+2. **Done (0.1.2 candidate):** `ledger::fold` with the `Body`/`ItemKind` split and its order-independence property test (shown to fail when stream merging is broken); `view::digest` and `hook prompt`/`hook start` against the two-device `file://` fixture (`engine/tests/two_devices.rs`). Measured: prompt hook 92 ms with a `file://` fetch; not-shared checkout 5 ms.
 3. `start`, `preflight`, `publish`, `change`, `status`; then `share-settings` and `share-start` via palette.
 4. `join_step` and `share-join`; then `hooks install` and the Claude hooks end to end with two real agents.
 5. `timeline_for` and `share-activity` (kept window).
