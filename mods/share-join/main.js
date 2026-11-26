@@ -3,8 +3,8 @@
 // install and update work end to end before any logic exists.
 import { View, div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { props, closeOverlay, theme, checking } from "herdr";
-import { engine, installEngine, availableUpdate, updateAll, newer, shownSpace, machineName, VERSION } from "./engine.js";
+import { props, closeOverlay, theme, checking, run } from "herdr";
+import { engine, installEngine, checkUpdate, newer, shownSpace, machineName, VERSION } from "./engine.js";
 
 export default class ShareJoin extends View {
   init(_props, cx) {
@@ -17,10 +17,7 @@ export default class ShareJoin extends View {
     if (checking()) return;
     cx.spawn(async (cx) => {
       await this.check(cx);
-      const { update, note } = await availableUpdate(cx);
-      this.update = update;
-      this.updateNote = note;
-      cx.notify();
+      await this.checkForUpdate(cx, false);
     });
   }
 
@@ -41,6 +38,17 @@ export default class ShareJoin extends View {
     cx.notify();
   }
 
+  /** Ask GitHub for a newer release; `force` is Check now. */
+  async checkForUpdate(cx, force) {
+    this.checking = true;
+    cx.notify();
+    const r = await checkUpdate(cx, { force });
+    this.checking = false;
+    this.update = r.update;
+    this.updateNote = r.update ? `Version ${r.update} is available` : "Up to date";
+    cx.notify();
+  }
+
   /** Engine missing or older on the space's machine: install it there, then check again. */
   installHere(cx) {
     this.busy = true;
@@ -54,17 +62,10 @@ export default class ShareJoin extends View {
     });
   }
 
-  /** A newer release: update the mods here and the engine everywhere. The mods hot-reload when it lands. */
-  updateEverything(cx) {
-    this.busy = true;
-    this.engine = `Updating to ${this.update}…`;
-    cx.notify();
-    cx.spawn(async (cx) => {
-      const r = await updateAll();
-      this.busy = false;
-      this.engine = r.ok ? `Updated to ${this.update}.` : r.error.message;
-      cx.notify();
-    });
+  /** The footer link: Live share updates owns checking and installing. */
+  openUpdates() {
+    this.close();
+    run("mod.open", { name: "share-updates" });
   }
 
   close() {
@@ -95,12 +96,16 @@ export default class ShareJoin extends View {
       .child(div().text_size(15).font_semibold().text_color(t.foreground).child("Join a space"))
       .child(div().text_color(t.muted).child("Paste a share link. Five checks run: session, GitHub sign-in, repo access, folder, branch."))
       .child(div().text_size(11).text_color(t.dim).child(`Not built yet. ${this.engine}`))
-      .when(Boolean(this.update) && !this.busy, (el) => el.child(div().text_size(11).text_color(t.dim).child(`Version ${this.update} is available (you have ${VERSION}).`)))
-      .when(!this.update && Boolean(this.updateNote), (el) => el.child(div().text_size(11).text_color(t.dim).child(`Mods ${VERSION}. ${this.updateNote}`)))
+      .when(Boolean(this.updateNote), (el) => el.child(
+        h_flex().id("updates").gap(6).items_center().text_size(11).cursor_pointer().on_click(() => this.openUpdates())
+          .when(Boolean(this.update), (el) => el.child(div().w(6).h(6).rounded(3).bg(t.accent)))
+          .child(div().text_color(t.muted).child(`herdr live share ${VERSION} · ${this.updateNote}`))
+          .child(div().font_semibold().text_color(this.update ? t.accent : t.foreground).hover((s) => s.opacity(0.8))
+            .child(this.update ? "See update" : "Check for updates")),
+      ))
       .child(
         h_flex().justify_end().gap(8)
-          .when(Boolean(this.update) && !this.busy, (el) => el.child(button("update", `Update to ${this.update}`, true, (_e, cx) => this.updateEverything(cx))))
-          .when(Boolean(this.fix) && !this.update && !this.busy, (el) => el.child(button("fix", fixLabel, true, (_e, cx) => this.installHere(cx))))
+          .when(Boolean(this.fix) && !this.busy, (el) => el.child(button("fix", fixLabel, true, (_e, cx) => this.installHere(cx))))
           .child(button("close", "Close", false, () => this.close())),
       );
   }

@@ -139,7 +139,7 @@ herdr-app runs on one computer and shows spaces from several machines (`hc machi
 
 | Runs on | What |
 |---|---|
-| **App machine** (herdr-app) | The four mods, their dialogs, `shared()`, `localStorage`, Activity unread and seen heads |
+| **App machine** (herdr-app) | The share mods, their dialogs, `shared()`, `localStorage`, Activity unread and seen heads |
 | **Space machine** (`space.machine`) | The repo and worktrees, `git`, `gh` and its sign-in, `herdr-session` and its store `~/.herdr/session`, Claude Code, the Claude hooks and `~/.claude/settings.json` |
 
 Rules:
@@ -532,7 +532,7 @@ Each check is one engine call, so the animation shows real progress (the clone i
 - **Two-device git fixtures**: a `file://` bare repo as "GitHub", two `HOME`s (Thomas, Ryan), a fake `gh` on PATH. Scenarios: Thomas offline overnight and Ryan joins; both push in the same second; rebase conflict; branch force-pushed; join interrupted after each step (fault injection after every durable step must converge without duplicate commits, sessions, spaces or `Joined` events).
 - **Hook goldens**: Claude stdin JSON in → exact stdout out, for each event, online and offline; a latency assertion for the no-session path (< 20 ms).
 - **settings.json merge**: install twice = once; foreign hooks kept; uninstall restores the original bytes.
-- **Mods**: `herdr-app check` per folder (guard `init` side effects with `checking()`); a fake `herdr-session` on PATH (a script reading `HERDR_SESSION_FAKE`) replays every UI state (each join failure, each wizard branch, missing binary, version skew) in a sandbox app home; one live pass driving the real binary against the fixture remote; `scripts/share/same-engine-js.sh` checks the four `engine.js` copies are identical.
+- **Mods**: `herdr-app check` per folder (guard `init` side effects with `checking()`); a fake `herdr-session` on PATH (a script reading `HERDR_SESSION_FAKE`) replays every UI state (each join failure, each wizard branch, missing binary, version skew) in a sandbox app home; one live pass driving the real binary against the fixture remote; `scripts/share/same-engine-js.sh` checks the `engine.js` copies are identical (`scripts/check`).
 - **Release gates (a disposable GitHub repo)**: custom `refs/herdr/*` pushes under org rules, private-repo joining, collaborator permissions via `gh`; a final isolated Claude smoke test that context and the heads-up actually reach the model.
 
 ```sh
@@ -580,7 +580,7 @@ Decisions for you:
 - **O13. Join machine.** The join dialog gains "On <machine>" when more than one machine is connected (not in the Paper screens). Default: the shown space's machine. OK, or always this computer?
 - **O12. "Does NOT open a tab".** A herdr space always has at least one tab (spike). v1 default: the joined space is created with `focus:false` and one plain shell tab; it is not shown and Claude is not started. Literal zero tabs needs a core change (`space.ensure`), not planned.
 
-Risks: hook latency on every Claude turn on the machine (shared or not), measured before shipping; `share.unread` is only fresh while the Activity window is alive; a separate blobless clone per joined repo instead of finding the user's existing clone; four copies of `engine.js`.
+Risks: hook latency on every Claude turn on the machine (shared or not), measured before shipping; `share.unread` is only fresh while the Activity window is alive; a separate blobless clone per joined repo instead of finding the user's existing clone; five copies of `engine.js`.
 
 **Unverified:**
 - (Verified in the spike below: hook `additionalContext` for all three events, `HC_TERMINAL_ID` in hooks, `hc label` clear, `refs/herdr/*` pushes to this org repo.)
@@ -608,7 +608,8 @@ Still unverified: `watchFolder` outside a repo, `ssh-keygen -Y sign` with an age
 
 - **Releasing.** `scripts/release <x.y.z>` sets the version in `engine/Cargo.toml` and in every mod's `engine.js` (`VERSION`), runs `scripts/check` (which fails if they disagree), commits, tags `v<x.y.z>` and pushes. Release notes: `CHANGELOG.md`'s Unreleased section becomes the version's section and the GitHub release notes; the file keeps the last 5 releases, and its footer says how to fetch every release's notes from GitHub. The tag runs `.github/workflows/release.yml`: engine binaries for Linux and macOS (x86_64, arm64) on a GitHub release.
 - **Installing and updating are the same command.** `install.sh` always takes the latest release for both the mods and the engine.
-- **Updates wait for a click (Thomas).** When a share dialog opens, it asks GitHub for the latest release at most once a day (cached in `shared("share.latest")` for all four mods). If it is newer than `VERSION`, the dialog shows "Version 0.2.0 is available" and **Update to 0.2.0**. The click runs the installer on the herdr-app computer: the mods are replaced and hot-reload, and the engine is updated on every connected machine. Nothing updates without the click.
+- **Updates wait for a click (Thomas).** When a share dialog opens, it asks GitHub for the latest release, at most once per 10 minutes (cached in `shared("share.latest")` for all share mods; herdr-app's `fetch` with a `User-Agent` and an 8 s cap, then `curl`). Every share dialog ends with one line: "herdr live share 0.1.4 · Up to date  **Check for updates**", or, with a violet dot, "herdr live share 0.1.4 · Version 0.1.5 is available  **See update**". Clicking the line closes the share dialog and opens Live share updates; checking and installing happen only there. The share dialogs keep only **Install on …** / **Update on …** for the space's own machine, since they cannot work without its engine. Paper: "Updates · Share dialog, check for updates" and "…, update available".
+- **Live share updates** (`share-updates`, palette): laid out like Herdr's Settings → Updates. Row 1: `herdr live share <version>`, its status line, **What's new** (opens the release notes on GitHub) and **Check now**, or **Update to …** when one exists. Below, one row per connected machine with its engine version and **Install on …** / **Update on …** when needed. Paper: page "Session start & join", artboards "Updates · Live share updates, up to date" and "…, update available". Per-machine buttons are outlined; only Update to … is violet.
 - **A machine that missed an update.** If the engine on the space's machine is older than the mods (it was offline during the update), the dialog shows **Update on <machine>**, which installs the matching engine there. A missing engine shows **Install on <machine>**.
 - **Claude hooks need nothing.** They call `~/.local/bin/herdr-session` by absolute path, and the installer replaces the binary with an atomic rename, so the next hook runs the new version and a running hook finishes on the old one.
 - **Mixed versions in one session are normal** (Thomas on 0.3, Ryan on 0.2 for a week). Rules: a release may add ledger event types and fields, never change or remove one; an older engine's `fold` skips event types it does not know and shows nothing for them. The mods-to-engine envelope `api` changes only for a breaking protocol change; on a mismatch the dialog offers the update and does nothing else.

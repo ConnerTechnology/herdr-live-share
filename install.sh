@@ -19,7 +19,7 @@ set -eu
 REPO="ConnerTechnology/herdr-live-share"
 RAW="https://raw.githubusercontent.com/$REPO/main/install.sh"
 BIN_DIR="$HOME/.local/bin"   # herdr-core's exec PATH includes it; ~/.cargo/bin is not
-MODS="share-settings share-start share-join share-activity"
+MODS="share-settings share-start share-join share-activity share-updates"
 
 mode=auto dry=0
 for arg in "$@"; do

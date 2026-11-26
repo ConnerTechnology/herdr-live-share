@@ -72,28 +72,57 @@ export function newer(a, b) {
   return false;
 }
 
-/** Whether a newer release exists: { update: "0.2.0" | null, note }.
- *  Asks GitHub each time a dialog opens, at most once per 10 minutes (cached in
- *  shared("share.latest") for all share mods). Tries herdr-app's fetch (capped
- *  at 8 s), then curl on this computer. Only a successful answer is cached.
- *  `note` says what happened, for the dialog. Never throws. */
-export async function availableUpdate(cx) {
+/** The update check: { latest, update, checkedAt, via, error }.
+ *  latest: the newest release ("0.2.0") or null; update: latest when it is newer
+ *  than these mods. Asks GitHub at most once per 10 minutes unless `force`
+ *  (Check now); the last success is cached in shared("share.latest") for all
+ *  share mods. Tries herdr-app's fetch (capped at 8 s), then curl. Never throws. */
+export async function checkUpdate(cx, { force = false } = {}) {
   let latest = shared("share.latest");
-  let note;
-  if (!latest || Date.now() - latest.at > RECHECK) {
+  let via = null, error = null;
+  if (force || !latest || Date.now() - latest.at > RECHECK) {
     const r = await latestTag(cx);
     if (r.tag) {
       latest = { tag: r.tag, at: Date.now() };
       setShared("share.latest", latest);
-      note = `Latest release ${r.tag} (checked with ${r.via}).`;
+      via = r.via;
     } else {
-      note = `Could not check for updates: ${r.error}`;
+      error = r.error;
     }
-  } else {
-    note = `Latest release ${latest.tag}.`;
   }
-  const update = latest?.tag && newer(latest.tag, VERSION) ? latest.tag : null;
-  return { update, note };
+  const tag = latest?.tag ?? null;
+  return { latest: tag, update: tag && newer(tag, VERSION) ? tag : null, checkedAt: latest?.at ?? null, via, error };
+}
+
+/** One line for a dialog: "Up to date. Checked at 1:24." and the like. */
+export function updateLine(r) {
+  if (r.error && !r.latest) return `Could not check for updates: ${r.error}`;
+  const when = r.checkedAt ? ` Checked at ${clock(r.checkedAt)}.` : "";
+  if (r.update) return `Version ${r.update} is available.${when}`;
+  return `Up to date.${when}`;
+}
+
+/** "1:24" in local time. */
+export function clock(ms) {
+  const d = new Date(ms);
+  return `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/** The GitHub page for a release's notes ("0.1.4"), or all releases. */
+export function releaseUrl(tag) {
+  const base = "https://github.com/ConnerTechnology/herdr-live-share/releases";
+  return tag ? `${base}/tag/v${tag}` : base;
+}
+
+/** Open a URL in the browser on the computer running herdr-app. */
+export async function openUrl(url) {
+  for (const opener of ["open", "xdg-open"]) {
+    try {
+      const out = await exec(opener, [url], { timeout: 10_000 });
+      if (out.code === 0) return true;
+    } catch {}
+  }
+  return false;
 }
 
 async function latestTag(cx) {
