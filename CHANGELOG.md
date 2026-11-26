@@ -4,6 +4,15 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+- **Share this space** is real. The toggle starts a session at once. There's no check for uncommitted or unpushed work: the only requirement is that the branch is on GitHub. Turning it off closes the session, and turning it on again reopens it with the same link.
+- While a space is shared, Space settings shows four things:
+  - **Keep in sync**: your own setting, on by default.
+  - **Close automatically**: closes the session after 14 days with no activity.
+  - **Who can join**: everyone with repo access, or people you pick from the repo's collaborators.
+  - **The join link**, with **Copy**.
+- Renaming the space also renames the session.
+- The engine adds `start`, `change`, `status` and `collaborators`.
+
 ## 0.1.6 (2026-11-26)
 
 - The share dialogs' version line now sits in the footer next to **Close**, and **Check for updates** is underlined so it reads as a link. Only the link is clickable.
