@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+## 0.1.7 (2026-11-26)
+
 - **Share this space** is real. The toggle starts a session at once. There's no check for uncommitted or unpushed work: the only requirement is that the branch is on GitHub. Turning it off closes the session, and turning it on again reopens it with the same link.
 - While a space is shared, Space settings shows four things:
   - **Keep in sync**: your own setting, on by default.
@@ -29,12 +31,6 @@ What changed in the most recent releases, for the people who install them. `scri
 ## 0.1.3 (2026-11-26)
 
 - The update check runs each time a share dialog opens (at most every 10 minutes) instead of once a day, and falls back to `curl` when herdr-app's own request fails. Install this release with the install line once; later releases arrive through **Update to …**.
-
-## 0.1.2 (2026-11-26)
-
-- **The session ledger.** Each machine keeps a signed event stream in hidden git refs on the repo's remote; the engine combines everyone's streams into one session state the same way on every machine, whatever order they arrive in. Events from a newer release are skipped, not fatal.
-- **Claude catch-up.** In a shared checkout, the Claude prompt and session-start hooks fetch the session and give the agent what is new since its last turn: pushes, tasks, chat, who is editing what. Each Claude conversation keeps its own place. Offline, it works from local state and says so.
-- Not wired up yet: starting or joining a session from the dialogs, and installing the hooks.
 
 ## Older releases
 
