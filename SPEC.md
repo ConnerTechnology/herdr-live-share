@@ -130,6 +130,26 @@ herdr-session/                      Rust crate + binary
 
 One mod per idea. Each palette-openable screen is its own folder because `mod.open {name}` takes no props and a folder has one `overlay` spec. Mod folders cannot import each other, so `engine.js` (about 40 lines) is copied into each folder and a script checks the copies are byte-identical.
 
+### 3.4 Machines: the app and the repo are often on different computers
+
+herdr-app runs on one computer and shows spaces from several machines (`hc machine ls`). Thomas runs the app on a Mac; his spaces live on `thomas-desktop-linux`. Each space has `spaces()[i].machine` (null: the computer running the app). This splits the feature in two:
+
+| Runs on | What |
+|---|---|
+| **App machine** (herdr-app) | The four mods, their dialogs, `shared()`, `localStorage`, Activity unread and seen heads |
+| **Space machine** (`space.machine`) | The repo and worktrees, `git`, `gh` and its sign-in, `herdr-session` and its store `~/.herdr/session`, Claude Code, the Claude hooks and `~/.claude/settings.json` |
+
+Rules:
+
+1. **Every engine call names the machine.** `engine.js` calls `exec("herdr-session", args, {on: space.machine, cwd})`. herdr-core runs it there. Nothing in the engine knows about the app machine.
+2. **The engine is installed on every space machine, in `~/.local/bin`.** herdr-core's `exec` uses a fixed PATH (`~/.local/bin:/usr/local/bin:/usr/bin:…`, checked on Linux), not the user's zsh PATH, so `~/.cargo/bin` is not found. `scripts/install --engine` builds it there; `scripts/install --mods` links the mods on the app machine. A missing engine reads "herdr-session isn't installed on thomas-desktop-linux."
+3. **Errors name the machine.** `engine.js` returns `Unreachable` when `machines()` reports the machine unavailable, `Missing` when `exec` rejects, and `Version` when the mods and that machine's engine disagree on `api`. Mods and engines update separately, so version skew is expected, not rare.
+4. **The hooks are installed where Claude runs**: `hooks install` runs on the space machine and edits that machine's `~/.claude/settings.json`. The toast says which machine.
+5. **Identity is per space machine.** The GitHub login is whoever `gh` is signed in as on that machine. A device stream is per machine, so one person sharing from two machines shows as two devices of one login (the fold already groups by login).
+6. **No local-only APIs for remote spaces.** `watchFolder` and `pickFolder` work only on the app machine. Activity refresh uses a timer for remote spaces (section 10). The join folder field is a text field for remote machines and adds the system picker only when the target is this computer.
+7. **Labels stay on their machine.** The engine sets `herdr.badge` with `hc label` on its own machine using the local `HC_TERMINAL_ID` (verified inherited by hooks); the app shows it with the `<machine>/` prefix as usual.
+8. **Joining picks a machine.** The joined worktree and its space are created on one machine: by default the shown space's machine, else this computer. The join dialog shows "On <machine>" under the link with a menu to change it when more than one machine is connected (O13). The space is made with `space.new {machine, folder, name, focus:false}`, and "Folder for shared sessions" is remembered per machine.
+
 ## 4. How a herdr-app mod is built (what this feature uses)
 
 Grounded in `herdr-app` (0.1.18) `defaults/AGENTS.md` and the shipped mods; citations are in `scratchpad/spec/grounding-mods.md`.
@@ -218,7 +238,7 @@ export default class ShareJoin extends View {
   init(props, cx) { /* this.op = crypto.randomUUID(); this.link = props.link ?? ""; this.folder = stored; checks idle */ throw new Error("not implemented"); }
   /** Runs steps from `from` in order, one exec each, stopping at the first fail. Each row animates in when its real result lands. */
   async run(from, cx) { throw new Error("not implemented"); }
-  /** A fail opens its field: session → link input (reruns from "session"); folder → folder input + pickFolder (reruns from "folder"). */
+  /** A fail opens its field: session → link input (reruns from "session"); folder → folder input, + pickFolder only when the target machine is this computer (reruns from "folder"). */
   edited(field, cx) { throw new Error("not implemented"); }
   /** Space in the sidebar without showing it: if no space's place() is the worktree, run("space.new", {folder, name, focus:false}). */
   reconcileSpace(joined) { throw new Error("not implemented"); }
@@ -455,7 +475,7 @@ To tell the others: herdr-session say task|done|decision|chat "<one line>"
 ## 10. Activity panel
 
 - **Produced** by `timeline_for(at, sync, Human)`: fold, then group items by local day, attach avatar colors by member join order (owner blue, then teal, orange…), return `{days, unread, heads, waiting: [{tab, count}], net}`. Pushed items carry a compare URL for "View changes".
-- **Refreshed** on space switch; on the tick folder changing (`watchFolder(~/.herdr/session/ticks)`: the engine touches `<code>` there on every local write, so local writes are instant and need no network); and every 30 s with `--sync` while `window()?.visible`. A hidden or closed window does no network.
+- **Refreshed** on space switch; on the tick folder changing (`watchFolder(~/.herdr/session/ticks)`: the engine touches `<code>` there on every local write, so local writes are instant and need no network); and every 30 s with `--sync` while `window()?.visible`. The tick-folder watch works only for spaces on the app machine (`watchFolder` is local only); for a remote space the window instead polls `timeline --local` every 5 s while visible (a local read on that machine, no network). A hidden or closed window does no network.
 - **Unread** = events after the human's `seen` heads not authored by me. The window mirrors the number to `shared("share.unread")[spaceId]` for the tab-bar button. Accepted limit: with the window closed nothing updates that number (no background mod); the button shows the last known count and refreshes when the window is next opened.
 - **Not docked on `main`** in v1 unless Can accepts the optional layout change (6.3).
 
@@ -500,7 +520,8 @@ Each check is one engine call, so the animation shows real progress (the clone i
 | Two devices write at once | Separate stream refs; each push touches only its own ref; fold is order-independent, so both converge. |
 | Ledger ref force-pushed or deleted | Quarantine fetch; a non-extending stream is ignored and our replica re-pushes. |
 | Folder switched to another branch | The binding is per branch: another branch means "not shared" in that folder, correctly. |
-| Remote machine space (`space.machine`) | The engine must exist on that machine; `exec({on})` and `hc label` work there, `watchFolder` does not. v1 refuses sharing remote spaces (O8). |
+| Remote machine space (`space.machine`) | Supported (section 3.4). Engine missing there → "herdr-session isn't installed on <machine>"; machine offline → "Can't reach <machine>"; the dialogs keep their last state. |
+| Mods and a machine's engine on different versions | `Version` error naming the machine; nothing is written. |
 
 ## 13. Tests and verification
 
@@ -549,10 +570,11 @@ Decisions for you:
 - **O5. Identity.** v1 identity is the GitHub login from `gh` signed by a device key; the ssh-signature proof from the earlier design is unverified. Acceptable for v1 because Who can join is cooperative?
 - **O6. Writing `~/.claude/settings.json`.** The spec shows a one-time toast as the only consent. Should Start and Join show an explicit "Add Claude hooks" line (a screen we have not designed)?
 - **O7. Commit message** for "Yes, commit and push": the engine uses a fixed default, "Work in progress before sharing <name>". Should the person type one, or Claude write it?
-- **O8. Remote machines.** v1 refuses sharing a space that lives on another machine. OK?
+- **O8. Remote machines. Resolved:** supported in v1 (section 3.4); it is Thomas's main setup.
 - **O9. Turn summaries from transcripts.** The first line of the last assistant message may include things not meant for teammates. Opt-out per space, or commit subjects only in v1?
 - **O10. Automatic rebase and push** after each turn with `--autostash`, even while the person edits the same checkout by hand. Is that the intended "keep in sync"?
-- **O11. Engine distribution.** Who ships `herdr-session`? The spec assumes a binary on PATH (or a path recorded in hooks) with `doctor`; Can may prefer it ship with the app.
+- **O11. Engine distribution. Resolved for v1:** one installer, `install.sh` (`curl … | sh`), run on the herdr-app computer, installs the mods there and the engine on every connected machine through `hc exec --on`. Run on a remote machine, it installs the engine and points to the app computer. Agents use it through `RECIPE.md` (the gallery's "add this mod" line). Binaries come from GitHub releases built by `.github/workflows/release.yml`, with a source build as the fallback. Dialogs offer "Install on <machine>" when the engine is missing. Shipping it with herdr-core stays a later option for Can.
+- **O13. Join machine.** The join dialog gains "On <machine>" when more than one machine is connected (not in the Paper screens). Default: the shown space's machine. OK, or always this computer?
 - **O12. "Does NOT open a tab".** A herdr space always has at least one tab (spike). v1 default: the joined space is created with `focus:false` and one plain shell tab; it is not shown and Claude is not started. Literal zero tabs needs a core change (`space.ensure`), not planned.
 
 Risks: hook latency on every Claude turn on the machine (shared or not), measured before shipping; `share.unread` is only fresh while the Activity window is alive; a separate blobless clone per joined repo instead of finding the user's existing clone; four copies of `engine.js`.

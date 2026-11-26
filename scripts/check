@@ -8,4 +8,5 @@ for m in mods/*/; do
     echo "engine.js differs: $m (copy $first to every mod)"; exit 1; fi
   herdr-app check "$m" 2>&1 | grep -E '^(check passed|error|Error)' || { echo "check failed: $m"; exit 1; }
 done
-if command -v cargo >/dev/null 2>&1; then cargo test --quiet; else echo "cargo not installed: engine not checked"; fi
+cargo=$(command -v cargo || echo "$HOME/.cargo/bin/cargo")
+if [ -x "$cargo" ]; then "$cargo" test --quiet; else echo "cargo not installed: engine not checked"; fi

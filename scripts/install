@@ -1,18 +1,32 @@
 #!/bin/sh
-# Links the share mods into herdr-app and installs the engine on PATH.
-# Mods are symlinked, so edits here hot-reload in the app.
+# Installs herdr live share on this machine.
+#   --mods    link the share mods into herdr-app (the machine running the app)
+#   --engine  build herdr-session into ~/.local/bin (every machine with shared spaces)
+#   (none)    both
+# The engine goes in ~/.local/bin because herdr-core's exec uses a fixed PATH
+# that includes it and not ~/.cargo/bin.
 set -eu
 cd "$(dirname "$0")/.."
-dest="${HERDR_APP_HOME:-$HOME/.config/herdr-app}/mods"
-mkdir -p "$dest"
-for m in mods/*/; do
-  name=$(basename "$m")
-  ln -sfn "$PWD/mods/$name" "$dest/$name"
-  echo "linked $dest/$name"
-done
-if command -v cargo >/dev/null 2>&1; then
-  cargo install --quiet --path engine
-  echo "installed herdr-session: $(command -v herdr-session || echo "add ~/.cargo/bin to PATH")"
-else
-  echo "cargo not installed: engine skipped (the mods will say herdr-session is missing)"
+mods=1 engine=1
+case "${1:-}" in
+  --mods) engine=0 ;;
+  --engine) mods=0 ;;
+  "") ;;
+  *) echo "usage: scripts/install [--mods|--engine]"; exit 2 ;;
+esac
+if [ $mods = 1 ]; then
+  dest="${HERDR_APP_HOME:-$HOME/.config/herdr-app}/mods"
+  mkdir -p "$dest"
+  for m in mods/*/; do
+    name=$(basename "$m")
+    ln -sfn "$PWD/mods/$name" "$dest/$name"
+    echo "linked $dest/$name"
+  done
+fi
+if [ $engine = 1 ]; then
+  cargo=$(command -v cargo || echo "$HOME/.cargo/bin/cargo")
+  [ -x "$cargo" ] || { echo "cargo not found: install Rust (rustup.rs), then rerun"; exit 1; }
+  "$cargo" install --quiet --path engine --root "$HOME/.local"
+  rm -f "$HOME/.cargo/bin/herdr-session"   # an older install from before this script used ~/.local
+  echo "installed $HOME/.local/bin/herdr-session"
 fi
