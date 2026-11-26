@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+- Space settings always shows the settings under **Share this space**. While sharing is off, including before the first share, they're greyed out to 45% and disabled.
+
 ## 0.1.7 (2026-11-26)
 
 - **Share this space** is real. The toggle starts a session at once. There's no check for uncommitted or unpushed work: the only requirement is that the branch is on GitHub. Turning it off closes the session, and turning it on again reopens it with the same link.

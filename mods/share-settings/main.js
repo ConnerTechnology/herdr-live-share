@@ -195,32 +195,36 @@ export default class ShareSettings extends View {
         .child(div().text_size(12).font_medium().text_color(t.ansi3 ?? t.working).child(this.problem))
       : null;
 
-    const settings = s
-      ? v_flex().gap(18).when(!on, (el) => el.opacity(0.45))
-        .child(row("sync", "Keep in sync", "Pull and rebase before each push. Push after each turn.",
-          sw("sync-sw", s.keep_in_sync, on && !this.busy, (_e, cx) => this.set(cx, "--keep-in-sync", s.keep_in_sync ? "off" : "on"))))
-        .child(row("close", "Close automatically", "Close the session after 14 days with no activity.",
-          sw("close-sw", s.auto_close, on && owner && !this.busy, (_e, cx) => this.set(cx, "--auto-close", s.auto_close ? "off" : "on"))))
-        .child(h_flex().id("who").gap(16).items_start()
-          .child(v_flex().flex_1().min_w(0).gap(2)
-            .child(div().text_size(13).font_semibold().text_color(t.foreground).child("Who can join"))
-            .child(div().text_size(12).text_color(t.muted).child("Leave empty to let everyone with repo access join.")))
-          .child(h_flex().id("who-button").w(260).flex_shrink_0().px(12).py(8).items_center().rounded(8).border_1()
-            .border_color(t.border).bg(t.background)
-            .when(on && owner, (el) => el.cursor_pointer().on_click((_e, cx) => this.openPicker(cx)))
-            .child(div().flex_1().text_size(13).text_color(t.foreground).child(whoLabel(s.who_can_join)))
-            .child(div().text_size(13).text_color(t.muted).child("▾"))))
-        .child(h_flex().id("link").px(12).py(10).gap(12).items_center().rounded(8).border_1().border_color(t.border).bg(t.background)
-          .child(div().flex_1().min_w(0).font_family("JetBrains Mono").text_size(13).text_color(t.foreground).child(s.link.replace(/^https:\/\//, "")))
-          .child(h_flex().id("copy").flex_shrink_0().px(12).py(6).rounded(6).bg(t.accent).text_size(12).font_semibold().text_color(t.accent_foreground)
-            .when(on, (el) => el.cursor_pointer().hover((st) => st.opacity(0.88)).on_click((_e, cx) => {
-              cx.write_to_clipboard(s.link);
-              this.copied = true;
-              cx.notify();
-              cx.timer.after(1500, (cx) => { this.copied = false; cx.notify(); });
-            }))
-            .child(this.copied ? "Copied" : "Copy")))
-      : null;
+    // Always shown; enabled only while sharing is on. Before the first share,
+    // the defaults a new session starts with.
+    const d = s ?? { keep_in_sync: true, auto_close: false, who_can_join: { anyone: true, logins: [] }, link: null };
+    const live = on && !this.busy;
+    const settings = v_flex().gap(18).when(!on, (el) => el.opacity(0.45))
+      .child(row("sync", "Keep in sync", "Pull and rebase before each push. Push after each turn.",
+        sw("sync-sw", d.keep_in_sync, live, (_e, cx) => this.set(cx, "--keep-in-sync", d.keep_in_sync ? "off" : "on"))))
+      .child(row("close", "Close automatically", "Close the session after 14 days with no activity.",
+        sw("close-sw", d.auto_close, live && owner, (_e, cx) => this.set(cx, "--auto-close", d.auto_close ? "off" : "on"))))
+      .child(h_flex().id("who").gap(16).items_start()
+        .child(v_flex().flex_1().min_w(0).gap(2)
+          .child(div().text_size(13).font_semibold().text_color(t.foreground).child("Who can join"))
+          .child(div().text_size(12).text_color(t.muted).child("Leave empty to let everyone with repo access join.")))
+        .child(h_flex().id("who-button").w(260).flex_shrink_0().px(12).py(8).items_center().rounded(8).border_1()
+          .border_color(t.border).bg(t.background)
+          .when(live && owner, (el) => el.cursor_pointer().on_click((_e, cx) => this.openPicker(cx)))
+          .child(div().flex_1().text_size(13).text_color(t.foreground).child(whoLabel(d.who_can_join)))
+          .child(div().text_size(13).text_color(t.muted).child("▾"))))
+      .child(h_flex().id("link").px(12).py(10).gap(12).items_center().rounded(8).border_1().border_color(t.border).bg(t.background)
+        .child(div().flex_1().min_w(0).font_family("JetBrains Mono").text_size(13)
+          .text_color(d.link ? t.foreground : t.muted)
+          .child(d.link ? d.link.replace(/^https:\/\//, "") : "herdr.dev/join/…"))
+        .child(h_flex().id("copy").flex_shrink_0().px(12).py(6).rounded(6).bg(t.accent).text_size(12).font_semibold().text_color(t.accent_foreground)
+          .when(on && Boolean(d.link), (el) => el.cursor_pointer().hover((st) => st.opacity(0.88)).on_click((_e, cx) => {
+            cx.write_to_clipboard(d.link);
+            this.copied = true;
+            cx.notify();
+            cx.timer.after(1500, (cx) => { this.copied = false; cx.notify(); });
+          }))
+          .child(this.copied ? "Copied" : "Copy")));
 
     return v_flex()
       .id("share-settings")
@@ -244,7 +248,7 @@ export default class ShareSettings extends View {
         .child(row("share", "Share this space", toggleDetail,
           sw("share-sw", on, owner && !this.busy && !this.engineNote, (_e, cx) => this.toggle(cx)), problem))
         .when(Boolean(s) && !owner, (el) => el.child(div().text_size(12).text_color(t.dim).child(`${s.owner} shares this space. Only they can change its settings; Keep in sync is yours.`)))
-        .when(Boolean(settings), (el) => el.child(settings))
+        .child(settings)
         .when(Boolean(this.engineNote), (el) => el.child(div().text_size(12).text_color(t.dim).child(this.engineNote))))
       .child(
         h_flex().items_center().gap(12).pt(16).border_t_1().border_color(t.border)
