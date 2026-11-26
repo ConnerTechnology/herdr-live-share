@@ -63,7 +63,7 @@ export async function installEngine(on = null) {
 export const VERSION = "0.1.2";
 
 const RELEASES = "https://api.github.com/repos/ConnerTechnology/herdr-live-share/releases/latest";
-const DAY = 86_400_000;
+const RECHECK = 10 * 60_000;
 
 /** a > b for "x.y.z" versions. */
 export function newer(a, b) {
@@ -73,21 +73,32 @@ export function newer(a, b) {
 }
 
 /** The newest release ("0.2.0") when it is newer than these mods, else null.
- *  Asks GitHub at most once a day, cached in shared("share.latest") for all share mods. Never throws. */
+ *  Asks GitHub each time a dialog opens, at most once per 10 minutes (cached in
+ *  shared("share.latest") for all share mods). Tries herdr-app's fetch, then curl
+ *  on this computer. Only a successful answer is cached. Never throws. */
 export async function availableUpdate() {
   let latest = shared("share.latest");
-  if (!latest || Date.now() - latest.at > DAY) {
-    try {
-      const r = await fetch(RELEASES, { headers: { accept: "application/vnd.github+json" } });
-      if (!r.ok) return null;
-      const tag = String((await r.json()).tag_name ?? "").replace(/^v/, "");
+  if (!latest || Date.now() - latest.at > RECHECK) {
+    const tag = (await latestTag()) ?? null;
+    if (tag) {
       latest = { tag, at: Date.now() };
       setShared("share.latest", latest);
-    } catch {
-      return null;
     }
   }
-  return latest.tag && newer(latest.tag, VERSION) ? latest.tag : null;
+  return latest?.tag && newer(latest.tag, VERSION) ? latest.tag : null;
+}
+
+async function latestTag() {
+  const parse = (text) => String(JSON.parse(text).tag_name ?? "").replace(/^v/, "") || null;
+  try {
+    const r = await fetch(RELEASES, { headers: { accept: "application/vnd.github+json" } });
+    if (r.ok) return parse(await r.text());
+  } catch {}
+  try {
+    const out = await exec("curl", ["-fsSL", "-H", "accept: application/vnd.github+json", RELEASES], { timeout: 15_000 });
+    if (out.code === 0) return parse(out.stdout);
+  } catch {}
+  return null;
 }
 
 /** Update everything from the computer running herdr-app: the mods here (they hot-reload)

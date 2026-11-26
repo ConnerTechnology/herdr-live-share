@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+- The update check runs each time a share dialog opens (at most every 10 minutes) instead of once a day, and falls back to `curl` when herdr-app's own request fails. Install this release with the install line once; later releases arrive through **Update to …**.
+
 ## 0.1.2 (2026-11-26)
 
 - **The session ledger.** Each machine keeps a signed event stream in hidden git refs on the repo's remote; the engine combines everyone's streams into one session state the same way on every machine, whatever order they arrive in. Events from a newer release are skipped, not fatal.
