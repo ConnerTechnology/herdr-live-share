@@ -53,6 +53,14 @@ pub struct Binding {
     pub sid: String,
     pub remote: String,
     pub login: String,
+    /// Keep in sync, per person: pull with rebase and push after each agent
+    /// turn. Lives here, on this person's machine, not in the session.
+    #[serde(default = "on")]
+    pub keep_in_sync: bool,
+}
+
+fn on() -> bool {
+    true
 }
 
 impl Binding {
@@ -136,7 +144,7 @@ pub fn open(at: &Checkout, remote: &str, login: &str, settings: Settings, now: M
     let name = own_ref(&sid, &key.tag(&sid));
     repo.append(&name, None, &key.sign(&event))?;
     repo.push(remote, &format!("{name}:{name}"), Duration::from_secs(30))?;
-    bind(at, &Binding { sid: sid.hex(), remote: remote.to_string(), login: login.to_string() })?;
+    bind(at, &Binding { sid: sid.hex(), remote: remote.to_string(), login: login.to_string(), keep_in_sync: true })?;
     Ok(sid)
 }
 

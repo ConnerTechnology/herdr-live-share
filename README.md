@@ -7,7 +7,7 @@ Status: scaffold. The design is in [SPEC.md](SPEC.md).
 ## Layout
 
 - `engine/`: `herdr-session`, a Rust command-line tool that owns all session state. Mods and Claude Code hooks call it.
-- `mods/`: five herdr-app mods (`share-settings`, `share-start`, `share-join`, `share-activity`, `share-updates`). Each `engine.js` copy must stay identical.
+- `mods/`: four herdr-app mods (`share-settings`, `share-join`, `share-activity`, `share-updates`). Each `engine.js` copy must stay identical.
 - `scripts/install`: links the mods into `~/.config/herdr-app/mods/` and builds the engine into `~/.local/bin`.
 - `scripts/check`: runs `herdr-app check` on each mod, compares the `engine.js` copies, and runs `cargo test`.
 

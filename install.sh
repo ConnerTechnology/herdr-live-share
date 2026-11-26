@@ -19,7 +19,8 @@ set -eu
 REPO="ConnerTechnology/herdr-live-share"
 RAW="https://raw.githubusercontent.com/$REPO/main/install.sh"
 BIN_DIR="$HOME/.local/bin"   # herdr-core's exec PATH includes it; ~/.cargo/bin is not
-MODS="share-settings share-start share-join share-activity share-updates"
+MODS="share-settings share-join share-activity share-updates"
+RETIRED="share-start"   # mods earlier releases installed; removed on update
 
 mode=auto dry=0
 for arg in "$@"; do
@@ -92,6 +93,12 @@ install_mods() {
     run rm -rf "$home/mods/$m"
     run cp -R "$tmp/src/mods/$m" "$home/mods/$m"
     say "Mod $m installed ($ref)."
+  done
+  for m in $RETIRED; do
+    if [ -d "$home/mods/$m" ] && [ ! -L "$home/mods/$m" ]; then
+      run rm -rf "$home/mods/$m"
+      say "Mod $m removed (no longer used)."
+    fi
   done
 }
 

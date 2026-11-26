@@ -89,10 +89,19 @@ pub struct Genesis {
 }
 
 impl Genesis {
+    /// The id of a genesis this release writes. Fold uses `genesis_id` on the
+    /// stored JSON instead, so a genesis with fields this release does not know
+    /// keeps its id.
     pub fn session_id(&self) -> SessionId {
-        let json = serde_json::to_vec(self).expect("genesis serializes");
-        SessionId(sha256(&json)[..16].try_into().unwrap())
+        genesis_id(&serde_json::to_value(self).expect("genesis serializes"))
     }
+}
+
+/// hash(the genesis JSON with keys sorted)[..16]: stable across releases,
+/// because it hashes what was stored, not what this release would re-encode.
+pub fn genesis_id(genesis: &serde_json::Value) -> SessionId {
+    let canonical = serde_json::to_vec(genesis).expect("json value serializes"); // Value maps are sorted
+    SessionId(sha256(&canonical)[..16].try_into().unwrap())
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
@@ -166,16 +175,16 @@ pub struct Signed {
     pub pk: [u8; 32],
     pub bytes: Vec<u8>,
     pub event: Event,
+    /// For a genesis: its id, from the JSON as stored.
+    pub genesis_id: Option<SessionId>,
 }
 
-impl Signed {
-    /// The blob stored in git: the signed JSON line, then "pk sig".
-    pub fn to_blob(&self, sig: &[u8; 64]) -> Vec<u8> {
-        let mut b = self.bytes.clone();
-        b.push(b'\n');
-        b.extend_from_slice(format!("{} {}\n", hex(&self.pk), hex(sig)).as_bytes());
-        b
-    }
+/// The blob stored in git: the signed JSON line, then "pk sig".
+pub fn blob(pk: &[u8; 32], line: &[u8], sig: &[u8; 64]) -> Vec<u8> {
+    let mut b = line.to_vec();
+    b.push(b'\n');
+    b.extend_from_slice(format!("{} {}\n", hex(pk), hex(sig)).as_bytes());
+    b
 }
 
 /// Decode and check one stored blob. None if it is malformed or the signature fails.
@@ -191,8 +200,12 @@ pub fn decode_blob(blob: &[u8]) -> Option<Signed> {
         Ok(b) => b,
         Err(_) => Body::Unknown { kind: w.body.get("kind").and_then(|k| k.as_str()).unwrap_or("").to_string() },
     };
+    let genesis_id = match &body {
+        Body::Opened { .. } => w.body.get("genesis").map(genesis_id),
+        _ => None,
+    };
     let event = Event { sid: w.sid, seq: w.seq, at: w.at, login: w.login, agent: w.agent, body };
-    Some(Signed { pk, bytes: line.as_bytes().to_vec(), event })
+    Some(Signed { pk, bytes: line.as_bytes().to_vec(), event, genesis_id })
 }
 
 /// This machine's signing key. One per machine, shared by all its sessions.
@@ -215,7 +228,7 @@ impl DeviceKey {
     pub fn sign(&self, event: &Event) -> Vec<u8> {
         let bytes = serde_json::to_vec(event).expect("event serializes");
         let sig = self.0.sign(&bytes).to_bytes();
-        Signed { pk: self.pk(), bytes, event: event.clone() }.to_blob(&sig)
+        blob(&self.pk(), &bytes, &sig)
     }
 }
 
@@ -358,7 +371,7 @@ pub fn fold(sid: &SessionId, streams: &[Verified], now: Ms) -> Option<Fold> {
         by_tag.into_iter().map(|(t, copies)| (t.clone(), merge_copies(&copies))).collect();
 
     let genesis = merged.values().find_map(|evs| match &evs.first()?.event.body {
-        Body::Opened { genesis } if genesis.session_id() == *sid => Some(genesis.clone()),
+        Body::Opened { genesis } if evs[0].genesis_id == Some(*sid) => Some(genesis.clone()),
         _ => None,
     })?;
     let owner = genesis.owner.clone();

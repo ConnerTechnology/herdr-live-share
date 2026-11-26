@@ -24,15 +24,15 @@ Example used throughout: Thomas shares the space "Google Search" (repo `joindele
 - **Access comes from GitHub permissions.** A joiner needs read access to the repo. Write access lets them push, which GitHub enforces. Read-only people can use their agent to ask about the code but cannot push (see O2 for what read-only people can publish).
 - **Who can join is cooperative.** It is enforced by herdr clients. It is not a security boundary: anyone who can read the repo can read session data with git. Do not oversell it in copy. v3 explores encryption.
 - Everyone works on the branch the space's folder is on. No branch is created. Everyone pushes to that one branch; git resolves conflicts. The host uses their own folder; joiners get a worktree in a configured folder.
-- "Keep in sync" means: pull/rebase before push, and push after each agent turn.
+- **Keep in sync is per person (Thomas, 2026-11-26), on by default.** On: after each agent turn, herdr pulls with rebase and pushes that person's commits, so others see them without anyone running `git push`; a conflict is undone and posted as an event. Off: herdr never pulls or pushes for that person; their own pushes still become events, and they still get catch-ups. It changes only what that person's machine does, so everyone sets their own, owner or not, in their own Space settings. It is stored in that machine's binding for the space (`keep_in_sync`, default true), not in the session, and writes no event. `herdr-session change --keep-in-sync on|off`.
 
-### 2.2 Before the session starts: commit and push
+### 2.2 Turning sharing on starts the session, and pushes become events
 
-- Turning sharing on first checks for uncommitted changes and unpushed commits. If there are none, there is **no wizard and no banner**; sharing starts.
-- Otherwise a two-step wizard with centered steps at the top: **1 Commit and push**, **2 Share this space**.
-  - Step 1 asks one question, no file list: "Do you want to commit the N changed files and push before you start the session?" / "…push the 3 commits…" / a combination. Context: "so they can only see work that is pushed. Pushing now lets them start on the latest changes from the start." Buttons: **Cancel** (underlined text), **Skip** (underlined, left of the primary), and **Yes, commit and push** / **Yes, push**.
-  - Skip is allowed. Step 1 keeps its name with lowered opacity and step 2 becomes current. Clicking step 1 goes back (underline on hover). After pushing, step 1 shows a done state.
-  - Step 2: centered title "Share this space", the space name field, Start. If work was skipped, the title area warns, title only: "Not pushed to GitHub: N changed files and M commits" (or "Not pushed to <origin>" when origin is not GitHub). Repository, branch and folder are not shown.
+- **No check for uncommitted or unpushed work (Thomas, 2026-11-26).** Turning the toggle on starts the session at once. There is no commit-and-push wizard.
+- **Pushes are what others see.** Once the session is shared, every push to the shared branch becomes a `Pushed` event in the ledger: the Activity panel shows it, and every connected agent gets it in its next digest ("thomas pushed 2 commits: …"). Work that is not pushed is simply not visible yet, the same as plain git.
+- **Which pushes become events.** Pushes made by herdr after an agent turn (`drain`) append `Pushed` directly. Pushes made any other way (a terminal, an IDE) are found by `sync`: when the shared branch on the remote has moved past what this device last saw, the engine that made those commits appends `Pushed { from, to, commits }`. `fold` keeps one item per `to`, so two devices noticing the same push show it once. (Built in step 4 with the hooks.)
+- **The one requirement: the branch is on GitHub.** People who join check out the branch from GitHub. If it has never been pushed, the toggle stays off and Space settings says, under the toggle: "google-search isn't on GitHub yet. Push it, then turn sharing on." The origin must be a GitHub repository ("Sharing needs the branch on GitHub").
+- Paper: "Share 0 · Space settings, never shared" and "Share 0 · Branch not on GitHub".
 
 ### 2.3 Joining
 
@@ -86,7 +86,7 @@ Question, Handoff and Conflict render as ordinary Timeline events in v1.
 ```
                  herdr-app (unchanged core)
  ┌───────────────────────────────────────────────────────────────┐
- │ share-settings  share-start  share-join  share-activity (mods)│  views only: draw state, call engine
+ │ share-settings  share-join  share-activity  share-updates (mods)│  views only: draw state, call engine
  └───────────────┬───────────────────────────────────────────────┘
                  │ exec("herdr-session", verb…) → one JSON envelope
                  ▼
@@ -126,7 +126,6 @@ this release does not know still verifies and decodes as `Unknown`. Fetches land
 
 ~/.config/herdr-app/mods/            (or shipped in defaults/mods/ if Can agrees)
   share-settings/  main.js  engine.js  picker.js  mod.json
-  share-start/     main.js  engine.js  mod.json
   share-join/      main.js  engine.js  link.js  mod.json
   share-activity/  main.js  engine.js  timeline.js  activity.svg  mod.json
 ```
@@ -176,9 +175,6 @@ Grounded in `herdr-app` (0.1.18) `defaults/AGENTS.md` and the shipped mods; cita
   "overlay": { "kind": "dialog", "modal": true, "width": 480 },
   "palette": [{ "title": "Share this space", "command": "mod.open", "args": { "name": "share-settings" }, "group": "Share", "words": "live share pair space settings" }] }
 
-// share-start/mod.json
-{ "place": "none", "title": "Share this space", "overlay": { "kind": "dialog", "modal": true, "width": 520 } }
-
 // share-join/mod.json
 { "place": "none", "title": "Join a space",
   "overlay": { "kind": "dialog", "modal": true, "width": 480 },
@@ -213,25 +209,10 @@ export function place(space, panes) { throw new Error("not implemented"); }
  *  Rows: toggle, name, auto-close, Who can join, link. Off: rows at opacity 0.45, disabled. */
 export default class ShareSettings extends View {
   init(props, cx) { /* first paint from shared("share.spaces")[space.id]; cx.spawn: engine status → summary */ throw new Error("not implemented"); }
-  /** On: preflight; dirty → close self, open share-start {folder, space}; clean → start (or reopen). Off: change --sharing off. */
+  /** On: start (or reopen); NotPushed/NotGitHub → the message under the toggle, toggle stays off. Off: change --sharing off. */
   async toggle(on, cx) { throw new Error("not implemented"); }
   /** Name, auto-close, Who can join: each commits with `change`. Owner only; otherwise rows are read-only. */
   async change(kind, value, cx) { throw new Error("not implemented"); }
-  render(cx) { throw new Error("not implemented"); }
-}
-
-// share-start/main.js: the wizard state machine
-/** @typedef {{at:"checking"}
- *   | {at:"commit", pre:Preflight}                        step 1 current
- *   | {at:"pushing", pre:Preflight}
- *   | {at:"share", pre:Preflight, step1:"done"|"skipped"}  step 2 current; "skipped" with pending work shows the title warning
- *   | {at:"starting"} | {at:"failed", back:"commit"|"share", message:string}} Step */
-export default class ShareStart extends View {
-  init(props, cx) { /* checking → spawn preflight; clean → straight to "share" with no step indicator */ throw new Error("not implemented"); }
-  async yes(cx) { /* publish [--commit-all]; re-preflight */ throw new Error("not implemented"); }
-  skip() { throw new Error("not implemented"); }
-  back() { throw new Error("not implemented"); }
-  async start(cx) { /* start --name; rename the space if the name was edited; close; reopen share-settings {space} */ throw new Error("not implemented"); }
   render(cx) { throw new Error("not implemented"); }
 }
 
@@ -274,7 +255,6 @@ The Paper screens assume chrome the default layout does not have: an Activity bu
 | Space menu row "Share this space…" | `share-settings` | Not possible without 6.2: the space menu is a fixed list. Until Can merges it, the palette entry "Share this space…" opens the same dialog for the active space |
 | Space settings (toggle, name, auto-close, Who can join, link) | `share-settings` | Modal dialog for the clicked space (props `{space}`), opened from the menu row or the palette |
 | Who can join menu | `share-settings` | Popup overlay of the same mod |
-| Two-step wizard | `share-start` | Modal dialog opened by `share-settings` |
 | Join entry | `share-join` | Palette "Join a space"; terminal link handler for `herdr.dev/join/` |
 | Join dialog, five checks, Done | `share-join` | Modal dialog, second state |
 | Activity panel | `share-activity` | Kept `window` overlay opened from the palette |
@@ -328,7 +308,6 @@ Single source of truth per row.
 | Human Activity cursor + unread | `share-activity` localStorage; count mirrored to `shared("share.unread")[spaceId]` | `share-activity` only | this app home |
 | Space ↔ session cache for chrome | `shared("share.spaces")[spaceId]` | any share mod after an engine `status` | this app home |
 | Join progress | `share-join` instance state; engine journal `~/.herdr/session/joins/<op>.json` | dialog; engine steps | this device |
-| Wizard step | `share-start` instance state | dialog | nobody else |
 | "Can't sync" | engine fetch stamp (`last_ok`, `last_error`) | engine | this clone; never in the ledger |
 
 `share.spaces` is the one shared key with several possible writers; it holds whole snapshots stamped with the engine's `at`, the newer stamp wins, and a lost write is corrected by the next `status`.
@@ -391,8 +370,6 @@ fn heads_up(f: &Fold, path: &RepoPath, me: &AgentId) -> Option<HeadsUp> { todo!(
 fn join_checks(facts: &JoinFacts, upto: JoinStep) -> StepResult { todo!("not implemented") }
 
 // ---- public API; main.rs maps each to one subcommand and one JSON envelope ----
-pub fn preflight(at: &Checkout) -> Result<Preflight, Error> { todo!("not implemented") }
-pub fn publish(at: &Checkout, op: OperationId, what: Publish) -> Result<Preflight, Error> { todo!("not implemented") }   // commit (opt.) + push -u
 pub fn start(at: &Checkout, op: OperationId, name: String) -> Result<ShareSummary, Error> { todo!("not implemented") }  // or Reopened if bound+closed
 pub fn change(at: &Checkout, op: OperationId, c: Change) -> Result<ShareSummary, Error> { todo!("not implemented") }
 pub fn status(at: &Checkout) -> Result<Option<ShareSummary>, Error> { todo!("not implemented") }           // local only, < 50 ms
@@ -404,10 +381,8 @@ pub fn hook(event: HookEvent, input: HookInput) -> HookReply { todo!("not implem
 pub fn hooks_install(settings: &Path, exe: &Path) -> Result<HooksState, Error> { todo!("not implemented") }
 
 pub enum Change { Sharing(bool), Name(String), AutoClose(bool), WhoCanJoin(WhoCanJoin) }
-pub struct Preflight { branch: BranchName, changed_files: u32, unpushed_commits: u32, upstream: Upstream, remote: RemoteKind }
 pub enum Upstream { Tracking, NotSet, Gone }
 pub enum RemoteKind { GitHub(GitHubRepo), Other { origin: String } }   // "Not pushed to <origin>" copy
-pub struct Publish { commit_all: bool }
 pub struct ShareSummary { code: SessionCode, link: String, settings: Settings, status: Status, owner: Login, me: Login, capability: Capability, at: ClaimedTime }
 pub enum Capability { Read, ReadWrite }                                  // from GitHub; drives what this device can publish (O2)
 pub enum JoinStep { Session, GitHub, Access, Folder, Branch, Finish }
@@ -486,11 +461,9 @@ To tell the others: herdr-session say task|done|decision|chat "<one line>"
 
 ### 11.1 Start
 
-- **Dirty detection** (`preflight`): `git status --porcelain` count, `git rev-list @{u}..HEAD` count, upstream state (no upstream → all local commits count, push uses `-u`), remote kind for the warning copy.
-- **Wizard**: the state machine in `share-start`. Clean tree → the dialog opens directly at step 2 with no step indicator and no banner. Skip with pending work → the step-2 title warning. Cancel at any point leaves sharing off and writes nothing.
-- **Push**: `publish` stages and commits everything only when `--commit-all`, then `git push -u origin <branch>`; a rejected push (behind) tries `pull --rebase` once and reports a conflict as a step-1 error. The commit message is a fixed default (see O7). Never force-push, never reset work away.
+- **No pre-check.** `start` refuses only a non-GitHub origin (`NotGitHub`) or a branch with no upstream (`NotPushed`); uncommitted and unpushed work do not matter.
 - **Create the session**: `start` builds genesis `{repo, branch, owner: Login, settings}`, `sid = hash(genesis)`, `code = sid[..5]`, appends `Opened` to the device stream, pushes `refs/herdr/s/<code>/m/<device>`, writes the binding, returns the link.
-- **Toggle**: off → `change --sharing off` appends `Closed`. On again with a binding → preflight, then `Reopened` (same code and link). A non-owner's toggle is read-only.
+- **Toggle**: off → `change --sharing off` appends `Closed`. On again with a binding → `Reopened` (same code and link). A non-owner's toggle is read-only.
 - **Auto-close**: `fold` derives `Closed{why: Idle}` at `last_activity + 14d` when auto-close is on, and `ClosingSoon` 48 h before. Nothing runs at the deadline: every read, join and sync evaluates the lease against the current time. Polling, fetching, cursors and health errors do not renew it. A closed session stays readable; hooks print one line ("The shared session closed on …; nothing new is shared.") and stop appending ledger events, but code pushes stay ordinary git.
 
 ### 11.2 Join
@@ -514,7 +487,7 @@ Each check is one engine call, so the animation shows real progress (the clone i
 
 | Event | What happens |
 |---|---|
-| A share mod hot-reloads | Copy restarts; tasks and timers stop; running `exec` children finish. Dialogs restart at their first state (wizard re-preflights; join reruns from step 1 and passes done steps quickly). Activity reloads; `seen` is in localStorage. |
+| A share mod hot-reloads | Copy restarts; tasks and timers stop; running `exec` children finish. Dialogs restart at their first state (join reruns from step 1 and passes done steps quickly). Activity reloads; `seen` is in localStorage. |
 | App restarts | Activity window returns (kept). Dialogs are gone; nothing is half-written because the engine is the only writer and each write is atomic. Agents are unaffected: hooks do not need the app. |
 | Engine binary missing | `engine()` returns `Missing`; each mod draws one state "herdr-session isn't installed" with the install command. Hooks: Claude shows a non-blocking hook error. |
 | Engine version differs | Envelope `api` mismatch → `Version` state naming both. Unknown `Body` variants are skipped in fold and shown as "Something happened (update herdr-session)". |
@@ -538,7 +511,7 @@ Each check is one engine call, so the animation shows real progress (the clone i
 ```sh
 cargo test -p herdr-session
 herdr-session doctor --json        # binary found, api version, gh signed in, hooks installed
-for m in share-settings share-start share-join share-activity; do herdr-app check ~/.config/herdr-app/mods/$m; done
+for m in share-settings share-join share-activity share-updates; do herdr-app check ~/.config/herdr-app/mods/$m; done
 ```
 
 ## 14. Synthesis decision
@@ -572,10 +545,10 @@ Decisions for you:
 - **O4. Join check 1 vs 3.** GitHub's 404 on private repos means check 1 cannot always be green first. Is leaving check 1 grey while check 2 or 3 shows the failure acceptable against "animated one by one"?
 - **O5. Identity.** v1 identity is the GitHub login from `gh` signed by a device key; the ssh-signature proof from the earlier design is unverified. Acceptable for v1 because Who can join is cooperative?
 - **O6. Writing `~/.claude/settings.json`.** The spec shows a one-time toast as the only consent. Should Start and Join show an explicit "Add Claude hooks" line (a screen we have not designed)?
-- **O7. Commit message** for "Yes, commit and push": the engine uses a fixed default, "Work in progress before sharing <name>". Should the person type one, or Claude write it?
+- **O7. Commit message. Resolved:** no wizard, so herdr never commits for you before sharing.
 - **O8. Remote machines. Resolved:** supported in v1 (section 3.4); it is Thomas's main setup.
 - **O9. Turn summaries from transcripts.** The first line of the last assistant message may include things not meant for teammates. Opt-out per space, or commit subjects only in v1?
-- **O10. Automatic rebase and push** after each turn with `--autostash`, even while the person edits the same checkout by hand. Is that the intended "keep in sync"?
+- **O10. Automatic rebase and push.** Resolved in part: Keep in sync is per person and can be turned off (2.1). Still open: with it on, the rebase uses `--autostash` even while the person edits the same checkout by hand.
 - **O11. Engine distribution. Resolved for v1:** one installer, `install.sh` (`curl … | sh`), run on the herdr-app computer, installs the mods there and the engine on every connected machine through `hc exec --on`. Run on a remote machine, it installs the engine and points to the app computer. Agents use it through `RECIPE.md` (the gallery's "add this mod" line). Binaries come from GitHub releases built by `.github/workflows/release.yml`, with a source build as the fallback. Dialogs offer "Install on <machine>" when the engine is missing. Shipping it with herdr-core stays a later option for Can.
 - **O13. Join machine.** The join dialog gains "On <machine>" when more than one machine is connected (not in the Paper screens). Default: the shown space's machine. OK, or always this computer?
 - **O12. "Does NOT open a tab".** A herdr space always has at least one tab (spike). v1 default: the joined space is created with `focus:false` and one plain shell tab; it is not shown and Claude is not started. Literal zero tabs needs a core change (`space.ensure`), not planned.
@@ -624,7 +597,7 @@ Still unverified: `watchFolder` outside a repo, `ssh-keygen -Y sign` with an age
 
 1. **Spike (a day):** the three unverified Claude hook behaviors, a push of `refs/herdr/*` to the real org remote, `hc label` clear, and whether a space can hold zero tabs.
 2. **Done (0.1.2 candidate):** `ledger::fold` with the `Body`/`ItemKind` split and its order-independence property test (shown to fail when stream merging is broken); `view::digest` and `hook prompt`/`hook start` against the two-device `file://` fixture (`engine/tests/two_devices.rs`). Measured: prompt hook 92 ms with a `file://` fetch; not-shared checkout 5 ms.
-3. `start`, `preflight`, `publish`, `change`, `status`; then `share-settings` and `share-start` via palette.
+3. `start`, `change`, `status`, `collaborators` (done, `engine/tests/share.rs`); then the real `share-settings` dialog via the palette. No wizard (2.2).
 4. `join_step` and `share-join`; then `hooks install` and the Claude hooks end to end with two real agents.
 5. `timeline_for` and `share-activity` (kept window).
 6. Open the chrome PR with Can (6.2, 6.3) with screenshots from steps 3 to 5 as evidence.

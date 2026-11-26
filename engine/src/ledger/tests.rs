@@ -102,8 +102,7 @@ fn an_unknown_event_kind_is_skipped_not_fatal() {
         T0 + 2 * H
     );
     let sig = ryan.key.0.sign(line.as_bytes()).to_bytes();
-    let blob = Signed { pk: ryan.key.pk(), bytes: line.into_bytes(), event: ryan_event_placeholder() }.to_blob(&sig);
-    ryan.blobs.push(blob);
+    ryan.blobs.push(blob(&ryan.key.pk(), line.as_bytes(), &sig));
     ryan.say(T0 + 3 * H, Body::Chat { text: "after".into() });
     let v = ryan.stream();
     assert_eq!(v.events().len(), 3, "the stream stays whole");
@@ -114,8 +113,24 @@ fn an_unknown_event_kind_is_skipped_not_fatal() {
     assert!(!f.items.iter().any(|i| matches!(&i.kind, ItemKind::Authored(Body::Unknown { .. }))));
 }
 
-fn ryan_event_placeholder() -> Event {
-    Event { sid: String::new(), seq: 0, at: 0, login: String::new(), agent: None, body: Body::Closed }
+#[test]
+fn a_genesis_from_a_newer_release_keeps_its_id() {
+    // A newer release adds a settings field; this release must still find the session.
+    let line_genesis = serde_json::json!({
+        "repo": "r", "branch": "b", "owner": "thomas", "created": T0, "nonce": "00",
+        "settings": { "name": "S", "auto_close": true, "who_can_join": { "who": "anyone" }, "theme": "violet" }
+    });
+    let sid = genesis_id(&line_genesis);
+    let k = key(1);
+    let line = serde_json::to_vec(&serde_json::json!({
+        "sid": sid.hex(), "seq": 0, "at": T0, "login": "thomas",
+        "body": { "kind": "opened", "genesis": line_genesis }
+    }))
+    .unwrap();
+    let sig = k.0.sign(&line).to_bytes();
+    let v = verify(&sid, &k.tag(&sid), &[blob(&k.pk(), &line, &sig)]);
+    let f = fold(&sid, &[v], T0).expect("found despite the unknown field");
+    assert_eq!(f.settings.name, "S");
 }
 
 #[test]

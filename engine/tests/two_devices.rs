@@ -90,7 +90,7 @@ fn two_people_one_session() {
     // Ryan clones and joins (the core of `join`: bind, append Joined, sync).
     let ryan = Person { home: root.join("ryan-home"), clone: root.join("ryan") };
     git(root, &["clone", "-q", "-b", "google-search", &url, "ryan"]);
-    let ryan_binding = Binding { sid: sid.hex(), remote: "origin".into(), login: "ryan".into() };
+    let ryan_binding = Binding { sid: sid.hex(), remote: "origin".into(), login: "ryan".into(), keep_in_sync: true };
     ryan.as_me(|at| {
         session::bind(at, &ryan_binding).unwrap();
         session::sync(at, &ryan_binding, Duration::from_secs(10));
