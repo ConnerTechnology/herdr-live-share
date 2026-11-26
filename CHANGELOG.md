@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+- The share dialogs' version line now sits in the footer next to **Close**, and **Check for updates** is underlined so it reads as a link. Only the link is clickable.
+
 ## 0.1.5 (2026-11-26)
 
 - **Live share updates** in the command palette, laid out like Herdr's Settings → Updates: the mods' version with **What's new** and **Check now** (or **Update to …**), and the engine's version on every connected machine with **Install on …** or **Update on …** when needed.

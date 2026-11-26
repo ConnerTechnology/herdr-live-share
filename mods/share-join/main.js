@@ -96,15 +96,17 @@ export default class ShareJoin extends View {
       .child(div().text_size(15).font_semibold().text_color(t.foreground).child("Join a space"))
       .child(div().text_color(t.muted).child("Paste a share link. Five checks run: session, GitHub sign-in, repo access, folder, branch."))
       .child(div().text_size(11).text_color(t.dim).child(`Not built yet. ${this.engine}`))
-      .when(Boolean(this.updateNote), (el) => el.child(
-        h_flex().id("updates").gap(6).items_center().text_size(11).cursor_pointer().on_click(() => this.openUpdates())
-          .when(Boolean(this.update), (el) => el.child(div().w(6).h(6).rounded(3).bg(t.accent)))
-          .child(div().text_color(t.muted).child(`herdr live share ${VERSION} · ${this.updateNote}`))
-          .child(div().font_semibold().text_color(this.update ? t.accent : t.foreground).hover((s) => s.opacity(0.8))
-            .child(this.update ? "See update" : "Check for updates")),
-      ))
       .child(
-        h_flex().justify_end().gap(8)
+        // Footer: the version line on the left, the buttons on the right, one row.
+        h_flex().items_center().gap(8)
+          .child(
+            h_flex().flex_1().gap(6).items_center().text_size(11)
+              .when(Boolean(this.update), (el) => el.child(div().w(6).h(6).rounded(3).bg(t.accent)))
+              .when(Boolean(this.updateNote), (el) => el
+                .child(div().text_color(t.muted).child(`herdr live share ${VERSION} · ${this.updateNote}`))
+                .child(div().id("updates").cursor_pointer().on_click(() => this.openUpdates()).underline().font_semibold().text_color(this.update ? t.accent : t.foreground).hover((s) => s.opacity(0.8))
+                  .child(this.update ? "See update" : "Check for updates"))),
+          )
           .when(Boolean(this.fix) && !this.busy, (el) => el.child(button("fix", fixLabel, true, (_e, cx) => this.installHere(cx))))
           .child(button("close", "Close", false, () => this.close())),
       );

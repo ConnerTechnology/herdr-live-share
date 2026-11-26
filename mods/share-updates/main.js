@@ -117,7 +117,7 @@ export default class ShareUpdates extends View {
       .rounded(8)
       .bg(t.popover)
       .child(h_flex().items_center()
-        .child(div().flex_1().text_size(18).font_semibold().text_color(t.foreground).child("Live share updates"))
+        .child(div().flex_1().text_size(17).font_semibold().text_color(t.foreground).child("Live share updates"))
         .child(div().text_size(11).text_color(t.dim).child("Esc")))
       .child(section("HERDR LIVE SHARE"))
       .child(row("mods", `herdr live share ${VERSION}`, this.line, idle ? modsActions : []))
