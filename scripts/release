@@ -1,6 +1,7 @@
 #!/bin/sh
 # Releases a new version: scripts/release 0.2.0
-# Sets the version in engine/Cargo.toml and every mod's engine.js, runs the checks,
+# Moves CHANGELOG.md's Unreleased notes under the version (they become the GitHub
+# release notes), sets the version in engine/Cargo.toml and every mod's engine.js, runs the checks,
 # commits, tags v<version> and pushes. The tag starts .github/workflows/release.yml,
 # which builds the engine binaries and publishes the GitHub release. Installed copies
 # see it the next time a share dialog opens and offer "Update to <version>".
@@ -17,7 +18,18 @@ old=$(sed -n 's/^version = "\(.*\)"/\1/p' engine/Cargo.toml | head -n 1)
   || { echo "$new is not newer than $old"; exit 1; }
 git rev-parse -q --verify "refs/tags/v$new" >/dev/null && { echo "tag v$new exists"; exit 1; }
 
+# The Unreleased section of CHANGELOG.md becomes this version's release notes.
+notes=$(awk '/^## Unreleased/{f=1; next} /^## /{if (f) exit} f' CHANGELOG.md | grep -v '^[[:space:]]*$' || true)
+if [ -z "$notes" ]; then
+  echo "CHANGELOG.md has nothing under ## Unreleased. Write what changed for the people who install it."
+  echo "Commits since v$old:"
+  git log --format='  %s' "v$old..HEAD" 2>/dev/null || git log --format='  %s'
+  exit 1
+fi
+
 sed -i.bak "0,/^version = \".*\"/s//version = \"$new\"/" engine/Cargo.toml && rm engine/Cargo.toml.bak
+awk -v v="$new" -v d="$(date +%Y-%m-%d)" '/^## Unreleased/{print; print ""; print "## " v " (" d ")"; next} {print}' CHANGELOG.md > CHANGELOG.md.new
+mv CHANGELOG.md.new CHANGELOG.md
 for f in mods/*/engine.js; do
   sed -i.bak "s/^export const VERSION = \".*\";/export const VERSION = \"$new\";/" "$f" && rm "$f.bak"
 done
