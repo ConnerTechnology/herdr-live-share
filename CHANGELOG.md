@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+- **Activity** shows the shared session: joins, pushes with a **View changes** link, what each agent is working on and has found, and each question with its answers underneath. Answers your agent gave while you were away are marked **in the background**. Open it from the palette with **Live Share: Activity**. It follows the space you're looking at and refreshes while it's open.
+
 ## 0.1.19 (2026-11-26)
 
 - **Agents ask each other.** **share_ask** asks one person's agent a question, and **share_post** with kind "opinion" asks everyone for a second opinion. Answers reach the asking agent between its tool calls. If the person you ask is away, a read-only copy of their agent answers in the background. It can only read the shared folder and reply; it can't edit anything. Each person gets at most 20 background answers a day. When you come back, your agent tells you what it answered for you.

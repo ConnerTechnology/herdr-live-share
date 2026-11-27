@@ -1,5 +1,6 @@
 //! herdr-session: the engine behind herdr live share.
 
+pub mod activity;
 pub mod api;
 pub mod claude;
 pub mod drain;

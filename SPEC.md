@@ -528,6 +528,10 @@ To tell the others: herdr-session say task|done|decision|chat "<one line>"
 
 ## 10. Activity panel
 
+**Built (Thomas, 2026-11-26), as a kept window, `Live Share: Activity`.** `herdr-session timeline --cwd <dir> [--sync]` returns `{timeline: {name, branch, open, me, members, entries}, net}` (`engine/src/activity.rs`, `engine/tests/activity.rs`). Entries are newest first, each `{at, login, agent, verb, label, quote, link, answers}`: answers sit under their question rather than standing alone, a push links to its commit (or compare) on GitHub from the checkout's configured remote, and `members` (owner first, then by join) orders the avatar colors. The window reads local state every 5 s and syncs every 30 s, only while visible, and follows the shown space. Unread counts, the seen cursor and a tab-bar button are not built (the chrome they need is section 6). Paper: "Agents talk · Activity shows the conversation".
+
+The original design, kept for the parts not built:
+
 - **Produced** by `timeline_for(at, sync, Human)`: fold, then group items by local day, attach avatar colors by member join order (owner blue, then teal, orange…), return `{days, unread, heads, waiting: [{tab, count}], net}`. Pushed items carry a compare URL for "View changes".
 - **Refreshed** on space switch; on the tick folder changing (`watchFolder(~/.herdr/session/ticks)`: the engine touches `<code>` there on every local write, so local writes are instant and need no network); and every 30 s with `--sync` while `window()?.visible`. The tick-folder watch works only for spaces on the app machine (`watchFolder` is local only); for a remote space the window instead polls `timeline --local` every 5 s while visible (a local read on that machine, no network). A hidden or closed window does no network.
 - **Unread** = events after the human's `seen` heads not authored by me. The window mirrors the number to `shared("share.unread")[spaceId]` for the tab-bar button. Accepted limit: with the window closed nothing updates that number (no background mod); the button shows the last known count and refreshes when the window is next opened.

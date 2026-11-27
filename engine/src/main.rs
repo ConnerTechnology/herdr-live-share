@@ -97,7 +97,21 @@ fn run(verb: &str, o: &Opts) -> Result<Value, ApiError> {
             let at = o.checkout()?;
             Ok(json!(herdr_session::listen::run(&at.root, o.0.contains_key("once"))))
         }
-        "sync" | "timeline" | "say" | "doctor" => {
+        "timeline" => {
+            // The Activity window: local and fast; --sync fetches (and notices terminal pushes) first.
+            let at = o.checkout()?;
+            let b = herdr_session::session::binding(&at).ok_or_else(|| ApiError { kind: "NotShared", message: "This space isn't shared.".into() })?;
+            if o.0.contains_key("sync") {
+                let _ = herdr_session::drain::drain(&at, &b, true);
+            }
+            let f = herdr_session::session::load(&at, &b, now)?;
+            let net = herdr_session::session::net_status(&at, &b.sid());
+            // The configured URL, not an insteadOf rewrite of it (as the share link reads it).
+            let url = at.repo().run(&["config", "--get", &format!("remote.{}.url", b.remote)]).unwrap_or_default();
+            let repo = herdr_session::github::GitHubRepo::parse(url.trim());
+            Ok(json!({ "timeline": herdr_session::activity::timeline(&f, &b.login, repo), "net": net }))
+        }
+        "sync" | "say" | "doctor" => {
             Err(ApiError { kind: "NotImplemented", message: format!("`{verb}` is not built yet") })
         }
         "" => Err(usage("usage: herdr-session <verb> [--cwd DIR] [options]")),
