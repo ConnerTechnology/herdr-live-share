@@ -4,7 +4,7 @@
 //
 // The Who can join menu is a Popover anchored to its dropdown. The session is
 // kept in shared("share.spaces")[spaceId], which every engine reply updates.
-import { View, div } from "gpui-kit";
+import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, Popover } from "gpui-base";
 import { props, closeOverlay, theme, checking, run, spaces, panes, shared, setShared } from "herdr";
 import { engine, installEngine, checkUpdate, newer, machineName, VERSION } from "./engine.js";
@@ -24,6 +24,9 @@ function remember(spaceId, session) {
 function recalled(spaceId) {
   return shared("share.spaces")?.[spaceId]?.session ?? null;
 }
+
+/** herdr's own icons, shipped with its workspace-chrome mod. */
+const ICON = (name) => `mods/workspace-chrome/${name}.svg`;
 
 function whoLabel(who) {
   if (!who || who.anyone) return "Anyone with repo access";
@@ -228,23 +231,26 @@ export default class ShareSettings extends View {
         .child(Popover.new("who-menu").anchor("top_right")
           .open(this.pickerOpen && live && owner)
           .on_open_change((open, cx) => this.setPicker(cx, open))
-          .trigger(h_flex().id("who-button").w(220).flex_shrink_0().px(12).py(8).gap(8).items_center().rounded(8).border_1()
-            .border_color(this.pickerOpen ? t.accent : t.border).bg(t.background)
-            .when(live && owner, (el) => el.cursor_pointer())
+          .trigger(h_flex().id("who-button").w(220).h(36).flex_shrink_0().px(12).gap(8).items_center().rounded(8).border_1()
+            .border_color(t.border).bg(this.pickerOpen ? t.hover : t.background)
+            .when(live && owner, (el) => el.cursor_pointer().hover((st) => st.bg(t.hover)))
             .child(div().flex_1().min_w(0).whitespace_nowrap().overflow_hidden().text_ellipsis().text_size(13).text_color(t.foreground).child(whoLabel(d.who_can_join)))
-            .child(div().text_size(13).text_color(t.muted).child("▾")))
+            .child(svg(ICON("chevron-down")).size(14).flex_none().text_color(t.muted)))
           .content(this.renderPicker(cx))))
       .child(h_flex().id("link").px(12).py(10).gap(12).items_center().rounded(8).border_1().border_color(t.border).bg(t.background)
         .child(div().flex_1().min_w(0).whitespace_nowrap().overflow_hidden().text_ellipsis_middle().font_family("JetBrains Mono").text_size(13)
           .text_color(d.link ? t.foreground : t.muted)
           .child(d.link ? d.link.replace(/^https:\/\//, "") : "herdr.dev/join/…"))
-        .child(h_flex().id("copy").flex_shrink_0().px(12).py(6).rounded(6).bg(t.accent).text_size(12).font_semibold().text_color(t.accent_foreground)
+        // Fixed width, so swapping Copy for Copied doesn't move anything.
+        .child(h_flex().id("copy").w(92).h(30).flex_shrink_0().gap(6).items_center().justify_center().rounded(6).bg(t.accent)
+          .text_size(12).font_semibold().text_color(t.accent_foreground)
           .when(on && Boolean(d.link), (el) => el.cursor_pointer().hover((st) => st.opacity(0.88)).on_click((_e, cx) => {
             cx.write_to_clipboard(d.link);
-            this.copied = true;
+            const n = (this.copied = (this.copied || 0) + 1);
             cx.notify();
-            cx.timer.after(1500, (cx) => { this.copied = false; cx.notify(); });
+            cx.timer.after(2000, (cx) => { if (this.copied === n) { this.copied = 0; cx.notify(); } });
           }))
+          .child(svg(this.copied ? ICON("check") : "mods/share-settings/copy.svg").size(14).flex_none())
           .child(this.copied ? "Copied" : "Copy")));
 
     return v_flex()
@@ -293,7 +299,8 @@ export default class ShareSettings extends View {
     const s = this.session;
     if (!s || this.saving) return;
     const chosen = new Set(s.who_can_join.anyone ? [] : s.who_can_join.logins);
-    if (chosen.has(login)) chosen.delete(login);
+    if (login === null) chosen.clear(); // Anyone with repo access
+    else if (chosen.has(login)) chosen.delete(login);
     else chosen.add(login);
     // Show it at once; the engine's reply confirms it.
     remember(this.space.id, { ...s, who_can_join: { anyone: chosen.size === 0, logins: [...chosen].sort() } });
@@ -307,36 +314,49 @@ export default class ShareSettings extends View {
     });
   }
 
+  /** The Who can join menu, drawn like herdr's own menus. */
   renderPicker(cx) {
     const t = theme();
     const s = this.session;
-    const chosen = new Set(s && !s.who_can_join.anyone ? s.who_can_join.logins : []);
+    const anyone = !s || s.who_can_join.anyone;
+    const chosen = new Set(anyone ? [] : s.who_can_join.logins);
     const q = this.query.trim().toLowerCase();
     const people = (this.people ?? []).filter((p) => !q || p.login.toLowerCase().includes(q));
+    const check = (on) => div().w(14).flex_none().when(on, (el) => el.child(svg(ICON("check")).size(14).text_color(t.accent)));
+    const item = (id, onClick) => h_flex().id(id).h(32).px(8).gap(9).rounded(7).items_center().cursor_pointer()
+      .hover((st) => st.bg(t.hover)).on_click(onClick);
+    const note = (text, color) => div().px(8).py(8).text_size(12).text_color(color).child(text);
     return v_flex()
       .id("who-picker")
-      .w(280)
-      .max_h(320)
-      .mt(4)
-      .rounded(8)
+      .w(300)
+      .max_h(340)
+      .mt(6)
+      .p(5)
+      .rounded(10)
       .border_1()
-      .border_color(t.accent)
+      .border_color(t.border)
       .bg(t.popover)
-      .child(div().p(10).border_b_1().border_color(t.border)
-        .child(Input.new(this.search).h(32).px(10).rounded(6).border_1().border_color(t.border).bg(t.background).text_size(13).text_color(t.foreground)))
-      .child(v_flex().id("people").flex_1().min_h(0).overflow_y_scroll().py(4)
-        .when(this.people === null, (el) => el.child(div().px(12).py(10).text_size(12).text_color(t.muted).child("Loading people with access…")))
-        .when(Boolean(this.peopleError), (el) => el.child(div().px(12).py(8).text_size(12).text_color(t.blocked ?? t.ansi1).child(this.peopleError)))
-        .children(people.map((p) => {
-          const on = chosen.has(p.login);
-          return h_flex().id(`person-${p.login}`).h(38).px(10).gap(10).items_center().cursor_pointer()
-            .hover((st) => st.bg(t.hover)).on_click((_e, cx) => this.pick(cx, p.login))
-            .child(h_flex().w(14).h(14).flex_shrink_0().items_center().justify_center().rounded(3).border_1()
-              .border_color(on ? t.accent : t.muted).bg(on ? t.accent : t.popover)
-              .when(on, (el) => el.child(div().text_size(10).font_semibold().text_color(t.accent_foreground).child("✓"))))
-            .child(div().w(20).h(20).flex_shrink_0().rounded(10).bg(avatar(t, p.login)))
-            .child(div().flex_1().min_w(0).whitespace_nowrap().overflow_hidden().text_ellipsis_middle().font_family("JetBrains Mono").text_size(13).text_color(t.foreground).child(p.login))
-            .child(div().text_size(12).text_color(t.muted).child(p.permission === "write" ? "Read/Write" : "Read"));
-        })));
+      .shadow_lg()
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .child(h_flex().h(32).px(8).gap(8).items_center()
+        .child(svg(ICON("search")).size(14).flex_none().text_color(t.muted))
+        .child(Input.new(this.search).flex_1().h(30).border_0().bg(t.popover).text_size(13).text_color(t.foreground)))
+      .child(div().mx(3).my(4).h(1).bg(t.border))
+      .child(item("who-anyone", (_e, cx) => this.pick(cx, null))
+        .child(svg(ICON("layers")).size(14).flex_none().text_color(t.muted))
+        .child(div().flex_1().text_size(13).text_color(t.foreground).child("Anyone with repo access"))
+        .child(check(anyone)))
+      .child(div().mx(3).my(4).h(1).bg(t.border))
+      .child(div().px(8).pt(2).pb(4).text_size(11).font_semibold().text_color(t.dim).child("ONLY THESE PEOPLE"))
+      .child(v_flex().id("people").flex_1().min_h(0).overflow_y_scroll()
+        .when(this.people === null, (el) => el.child(note("Loading people with access…", t.muted)))
+        .when(this.people !== null && !people.length && !this.peopleError, (el) => el.child(note(q ? "No one matches." : "No one else has access.", t.muted)))
+        .when(Boolean(this.peopleError), (el) => el.child(note(this.peopleError, t.blocked ?? t.ansi1)))
+        .children(people.map((p) => item(`person-${p.login}`, (_e, cx) => this.pick(cx, p.login))
+          .child(h_flex().w(20).h(20).flex_none().items_center().justify_center().rounded(10).bg(avatar(t, p.login))
+            .text_size(11).font_semibold().text_color(t.background).child(p.login[0].toUpperCase()))
+          .child(div().flex_1().min_w(0).whitespace_nowrap().overflow_hidden().text_ellipsis().text_size(13).text_color(t.foreground).child(p.login))
+          .child(div().text_size(11).text_color(t.dim).child(p.permission === "write" ? "Read/Write" : "Read"))
+          .child(check(chosen.has(p.login))))));
   }
 }
