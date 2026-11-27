@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+## 0.1.13 (2026-11-26)
+
 - The palette commands now start with **Live Share:** — Share this space, Join a shared space, Activity and Updates.
 - In Space settings, the **Who can join** menu opens right under its button instead of at the bottom of the window, the join link stays on one line, and the Who can join text no longer wraps.
 
@@ -40,10 +42,6 @@ What changed in the most recent releases, for the people who install them. `scri
 - With more than one machine connected, **On <machine>** picks where the joined copy goes.
 - Sharing and joining set up the Claude hooks in `~/.claude/settings.json` on their own. Your other hooks and settings are kept. `herdr-session hooks uninstall` removes exactly ours.
 - People with read-only access can join and follow along. They publish nothing.
-
-## 0.1.8 (2026-11-26)
-
-- Space settings always shows the settings under **Share this space**. While sharing is off, including before the first share, they're greyed out to 45% and disabled.
 
 ## Older releases
 
