@@ -299,8 +299,7 @@ export default class ShareSettings extends View {
     const s = this.session;
     if (!s || this.saving) return;
     const chosen = new Set(s.who_can_join.anyone ? [] : s.who_can_join.logins);
-    if (login === null) chosen.clear(); // Anyone with repo access
-    else if (chosen.has(login)) chosen.delete(login);
+    if (chosen.has(login)) chosen.delete(login);
     else chosen.add(login);
     // Show it at once; the engine's reply confirms it.
     remember(this.space.id, { ...s, who_can_join: { anyone: chosen.size === 0, logins: [...chosen].sort() } });
@@ -318,8 +317,8 @@ export default class ShareSettings extends View {
   renderPicker(cx) {
     const t = theme();
     const s = this.session;
-    const anyone = !s || s.who_can_join.anyone;
-    const chosen = new Set(anyone ? [] : s.who_can_join.logins);
+    // No one picked means anyone with repo access, which the button says.
+    const chosen = new Set(s && !s.who_can_join.anyone ? s.who_can_join.logins : []);
     const q = this.query.trim().toLowerCase();
     const people = (this.people ?? []).filter((p) => !q || p.login.toLowerCase().includes(q));
     const check = (on) => div().w(14).flex_none().when(on, (el) => el.child(svg(ICON("check")).size(14).text_color(t.accent)));
@@ -342,12 +341,6 @@ export default class ShareSettings extends View {
         .child(svg(ICON("search")).size(14).flex_none().text_color(t.muted))
         .child(Input.new(this.search).flex_1().h(30).border_0().bg(t.popover).text_size(13).text_color(t.foreground)))
       .child(div().mx(3).my(4).h(1).bg(t.border))
-      .child(item("who-anyone", (_e, cx) => this.pick(cx, null))
-        .child(svg(ICON("layers")).size(14).flex_none().text_color(t.muted))
-        .child(div().flex_1().text_size(13).text_color(t.foreground).child("Anyone with repo access"))
-        .child(check(anyone)))
-      .child(div().mx(3).my(4).h(1).bg(t.border))
-      .child(div().px(8).pt(2).pb(4).text_size(11).font_semibold().text_color(t.dim).child("ONLY THESE PEOPLE"))
       .child(v_flex().id("people").flex_1().min_h(0).overflow_y_scroll()
         .when(this.people === null, (el) => el.child(note("Loading people with access…", t.muted)))
         .when(this.people !== null && !people.length && !this.peopleError, (el) => el.child(note(q ? "No one matches." : "No one else has access.", t.muted)))

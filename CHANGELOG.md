@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+- The **Who can join** menu no longer has an **Anyone with repo access** row. Leave everyone unticked to let anyone with repo access join, as the button says.
+
 ## 0.1.15 (2026-11-26)
 
 - The **Who can join** menu looks like herdr's own menus. It has a search row, an **Anyone with repo access** choice, and checkmarks next to the people you pick.
