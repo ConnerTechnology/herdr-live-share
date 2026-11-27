@@ -19,8 +19,8 @@ set -eu
 REPO="ConnerTechnology/herdr-live-share"
 RAW="https://raw.githubusercontent.com/$REPO/main/install.sh"
 BIN_DIR="$HOME/.local/bin"   # herdr-core's exec PATH includes it; ~/.cargo/bin is not
-MODS="share-panel share-join"
-RETIRED="share-start share-settings share-updates share-activity"   # mods earlier releases installed; removed on update
+MODS="share-settings share-join share-activity share-updates"
+RETIRED="share-start share-panel"   # mods earlier releases installed; removed on update
 
 mode=auto dry=0
 for arg in "$@"; do

@@ -1,0 +1,3 @@
+{ "place": "none", "title": "Share this space",
+  "overlay": { "kind": "dialog", "modal": true, "width": 560 },
+  "palette": [{ "title": "Share this space", "command": "mod.open", "args": { "name": "share-settings" }, "group": "Share", "words": "live share pair space settings" }] }

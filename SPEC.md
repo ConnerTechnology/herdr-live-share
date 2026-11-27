@@ -247,30 +247,33 @@ export default class Activity extends View {
 
 The Paper screens assume chrome the default layout does not have: an Activity button in the tab bar, a "Share this space" entry in the space right-click menu, an Activity side panel docked in the window. Today the space right-click menu is a fixed list in the shipped `menu` mod (`defaults/mods/menu/main.js`, case `"space"`: Rename, New/Open/Remove worktree for git folders, Close). The + button runs `space.new` directly. There is no space-settings dialog.
 
-**Decision (Thomas, 2026-11-26): the Live Share panel replaces Space settings and Live share updates.** It is a panel for the shown space, opened by a **Live Share** button next to Files and Changes, with **Share** and **Updates** tabs (Paper: page "Live Share panel"). It follows the shown space. The command palette is only for **Join a space**. herdr-app has no way for a mod to add a tab-bar button or a panel next to Files and Changes (both are in the shipped, read-only `tabs` mod and `main` layout), so until 6.2 lands the panel is a kept `window` overlay (`share-panel`) opened by one temporary palette entry, **Live Share**, which goes away when the button ships. The + button is unchanged.
+**Decision (Thomas): v1 ships with two palette entries only: "Share this space" and "Join a space". The + button is unchanged. The target for later is a "Share this space" row in the space right-click menu, between Rename and Close.**
+
+**Decision (Thomas, 2026-11-27): no herdr-app changes.** A Live Share side panel next to Files and Changes (Paper: page "Live Share panel") would need herdr-app to let mods add a panel button and a panel to its shipped layout. We keep the dialogs instead: Space settings and Join a space from the palette, and Live share updates from the dialogs' footer link (and the palette). 0.1.10 shipped the panel as a floating window; the next release returns to the dialogs and removes `share-panel`.
 
 ### 6.1 v1 without any shipped-mod change (works today)
 
 | Screen or entry | Mod | Mechanism |
 |---|---|---|
-| Live Share button next to Files and Changes | `share-panel` | Not possible without 6.2. Until then the temporary palette entry "Live Share" opens the panel |
-| Live Share panel: Share tab (name, toggle, Keep in sync, auto-close, Who can join, link) and Updates tab | `share-panel` | Kept `window` overlay (key `share-panel`, remembers where it was dropped) that follows the shown space |
-| Who can join menu | `share-panel` | Popup overlay of the same mod |
+| Space menu row "Share this space…" | `share-settings` | Not possible without 6.2: the space menu is a fixed list. Until Can merges it, the palette entry "Share this space…" opens the same dialog for the active space |
+| Space settings (toggle, name, auto-close, Who can join, link) | `share-settings` | Modal dialog for the clicked space (props `{space}`), opened from the menu row or the palette |
+| Who can join menu | `share-settings` | Popup overlay of the same mod |
 | Join entry | `share-join` | Palette "Join a space"; terminal link handler for `herdr.dev/join/` |
 | Join dialog, five checks, Done | `share-join` | Modal dialog, second state |
-| Activity | (later) | A third panel tab (step 5) |
+| Activity panel | `share-activity` | Kept `window` overlay opened from the palette |
+| Activity button + unread | (none) | Palette entry and an optional `keys.json` binding |
 | Idle Claude-tab badge | engine writes label | Shown as "Claude · tab 2 · 3 waiting" in the Activity window header |
 | Catch-up digest, heads-up | engine `hook` | Claude hooks |
 
 ### 6.2 The ask: one generic contribution point
 
-**The main ask is now a panel button: mods add a button next to Files and Changes that shows their mod in the `panel-body` stack, the way Files and Changes do** (`tabs/main.js` hard-codes `panelButton("files")` and `panelButton("changes")`; `main.json`'s `panel-body` stack has only those two children). The space menu row below is secondary. In `menu/main.js` the `"space"` case would append rows from `chrome["space-menu"]` after Rename, each as `[title, "mod.open", {name: open, props: {space: tg.id}}]`. The `new-menu` and tab-bar entries are secondary and optional (v1 works without them). Three **shipped JS mods** (`tabs`, `menu`, `new-menu`) read a `chrome` field from other mods' `mod.json`, the way `frame/palette/main.js:82-111` reads `palette`. No Rust change.
+**The space menu row is the main ask and the first change to land.** In `menu/main.js` the `"space"` case would append rows from `chrome["space-menu"]` after Rename, each as `[title, "mod.open", {name: open, props: {space: tg.id}}]`. The `new-menu` and tab-bar entries are secondary and optional (v1 works without them). Three **shipped JS mods** (`tabs`, `menu`, `new-menu`) read a `chrome` field from other mods' `mod.json`, the way `frame/palette/main.js:82-111` reads `palette`. No Rust change.
 
 ```json
 "chrome": {
   "space-menu": [{ "title": "Share this space…", "icon": "mods/share-settings/share.svg", "open": "share-settings", "after": "space.rename" }],
   "new-menu":   [{ "title": "Join a shared space…", "icon": "mods/share-join/join.svg", "open": "share-join", "after": "space" }],
-  "panel":      [{ "id": "live-share", "title": "Live Share", "icon": "mods/share-panel/live.svg", "mod": "share-panel", "after": "changes" }]
+  "tab-bar":    [{ "id": "activity", "title": "Activity", "icon": "mods/share-activity/activity.svg", "open": "share-activity", "badge": "share.unread" }]
 }
 ```
 
