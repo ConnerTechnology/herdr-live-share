@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+- **Live share updates** is now just two buttons: **Update mods and engines**, greyed out when there's nothing to update, and **What's new**. It checks GitHub each time it opens, so **Check now** is gone.
+
 ## 0.1.11 (2026-11-26)
 
 - Back to the dialogs. **Share this space** opens Space settings, **Join a space** stays the same, and each dialog's footer links to **Live share updates**. The Live Share panel from 0.1.10 is removed on update. Docking it next to Files and Changes would have needed a change to herdr-app.

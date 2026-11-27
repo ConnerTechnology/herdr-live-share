@@ -1,8 +1,9 @@
-// Live share updates: like Herdr's Settings → Updates. One row for herdr live
-// share and one button that updates everything: Update to … (the mods here and
-// the engine on every machine), or Update engines when only an engine is
-// behind. Engines are checked in the background only to pick that label; no
-// rows per machine. Nothing installs without a click.
+// Live share updates: the version and two buttons. "Update mods and engines"
+// installs a new release (the mods here and the engine on every machine), or,
+// with the mods current, brings any engine that is missing or behind up to
+// them; with nothing to update it is greyed out. "What's new" opens the release
+// notes. Opening the dialog asks GitHub right away (there is no Check now).
+// Nothing installs without a click.
 import { View, div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { props, closeOverlay, theme, checking, machines } from "herdr";
@@ -18,7 +19,7 @@ export default class ShareUpdates extends View {
     this.engines = new Map(); // machine key → { on, text, fix }
     if (checking()) return;
     cx.spawn(async (cx) => {
-      await Promise.all([this.checkForUpdate(cx, false), this.checkEngines(cx)]);
+      await Promise.all([this.checkForUpdate(cx, true), this.checkEngines(cx)]);
     });
   }
 
@@ -100,27 +101,19 @@ export default class ShareUpdates extends View {
   render(cx) {
     const t = theme();
     const idle = this.busy === null;
-    const button = (id, label, onClick, primary = false) =>
+    const button = (id, label, onClick, primary, enabled) =>
       h_flex().id(id).h(36).px(16).items_center().rounded(8).border_1()
-        .border_color(primary ? t.solid : t.border).bg(primary ? t.solid : t.popover)
-        .text_color(primary ? t.solid_foreground : t.foreground)
-        .cursor_pointer().hover((s) => s.opacity(0.88)).on_click(onClick).child(label);
-    const section = (label) => div().text_size(12).text_color(t.dim).child(label);
-    const row = (id, title, detail, actions) =>
-      h_flex().id(id).gap(12).items_center().py(12)
-        .child(v_flex().flex_1().gap(4)
-          .child(div().text_size(14).text_color(t.foreground).child(title))
-          .child(div().text_size(12).text_color(t.muted).child(detail)))
-        .child(h_flex().gap(8).children(actions));
+        .border_color(primary ? t.accent : t.border).bg(primary ? t.accent : t.popover)
+        .text_size(13).font_medium().text_color(primary ? t.accent_foreground : t.foreground)
+        .when(!enabled, (el) => el.opacity(0.45))
+        .when(enabled, (el) => el.cursor_pointer().hover((s) => s.opacity(0.88)).on_click(onClick))
+        .child(label);
 
-    // One button does everything: a new release updates the mods and every engine;
-    // with the mods current, it brings any engine that is missing or behind up to them.
+    // One button for the mods and every engine: a new release, else engines that fell behind.
     const enginesBehind = [...this.engines.values()].some((e) => e.fix);
-    const modsActions = this.update
-      ? [button("whats-new", "What's new", () => openUrl(releaseUrl(this.update))), button("update", `Update to ${this.update}`, (_e, cx) => this.updateEverything(cx), true)]
-      : enginesBehind
-        ? [button("whats-new", "What's new", () => openUrl(releaseUrl(VERSION))), button("update-engines", "Update engines", (_e, cx) => this.updateEngines(cx), true)]
-        : [button("whats-new", "What's new", () => openUrl(releaseUrl(VERSION))), button("check", "Check now", (_e, cx) => cx.spawn(async (cx) => this.checkForUpdate(cx, true)))];
+    const canUpdate = idle && (Boolean(this.update) || enginesBehind);
+    const update = (_e, cx) => (this.update ? this.updateEverything(cx) : this.updateEngines(cx));
+    const notes = releaseUrl(this.update ?? VERSION);
 
     return v_flex()
       .id("share-updates")
@@ -132,13 +125,17 @@ export default class ShareUpdates extends View {
       })
       .size_full()
       .p(24)
-      .gap(8)
+      .gap(16)
       .rounded(8)
       .bg(t.popover)
       .child(h_flex().items_center()
         .child(div().flex_1().text_size(17).font_semibold().text_color(t.foreground).child("Live share updates"))
         .child(div().text_size(11).text_color(t.dim).child("Esc")))
-      .child(section("HERDR LIVE SHARE"))
-      .child(row("mods", `herdr live share ${VERSION}`, this.statusLine(), idle ? modsActions : []));
+      .child(v_flex().gap(4)
+        .child(div().text_size(14).font_semibold().text_color(t.foreground).child(`herdr live share ${VERSION}`))
+        .child(div().text_size(12).text_color(t.muted).child(this.statusLine())))
+      .child(h_flex().gap(8)
+        .child(button("update", "Update mods and engines", update, true, canUpdate))
+        .child(button("whats-new", "What's new", () => openUrl(notes), false, true)));
   }
 }
