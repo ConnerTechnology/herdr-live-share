@@ -46,6 +46,7 @@ export default class ShareSettings extends View {
     this.on = this.space?.machine ?? null;
     this.folder = this.space ? place(this.space) : null;
     this.busy = null; // "start" | "stop" | "change" while the engine works
+    this.pending = null; // { id, value }: the switch a click just moved, until the engine answers
     this.problem = null; // a message under the toggle (branch not on GitHub, …)
     this.engineNote = null; // the engine is missing, old or unreachable on this machine
     this.fix = null;
@@ -102,6 +103,7 @@ export default class ShareSettings extends View {
     cx.notify();
     const r = await engine([...args, "--cwd", this.folder], { on: this.on, timeout: LONG });
     this.busy = null;
+    this.pending = null;
     if (r.ok) remember(this.space.id, r.value);
     else this.problem = r.error.message;
     cx.notify();
@@ -111,14 +113,17 @@ export default class ShareSettings extends View {
   toggle(cx) {
     const s = this.session;
     if (this.busy || (s && !s.is_owner)) return;
+    this.pending = { id: "share-sw", value: !s?.open };
     cx.spawn(async (cx) => {
       if (s?.open) await this.call(cx, "stop", ["change", "--sharing", "off"]);
       else await this.call(cx, "start", ["start", "--name", this.name.trim() || this.space.name]);
     });
   }
 
-  set(cx, flag, value) {
+  /** One setting change. `sw` names the switch it moves, which shows the new value at once. */
+  set(cx, flag, value, sw) {
     if (this.busy) return;
+    if (sw) this.pending = { id: sw, value: value === "on" };
     cx.spawn(async (cx) => this.call(cx, "change", ["change", flag, value]));
   }
 
@@ -179,11 +184,18 @@ export default class ShareSettings extends View {
         .border_color(primary ? t.accent : t.border).bg(primary ? t.accent : t.popover)
         .text_size(13).font_medium().text_color(primary ? t.accent_foreground : t.foreground)
         .cursor_pointer().hover((st) => st.opacity(0.88)).on_click(onClick).child(label);
-    const sw = (id, value, enabled, onClick) =>
-      h_flex().id(id).w(36).h(20).flex_shrink_0().px(2).items_center().rounded(10)
-        .when(value, (el) => el.justify_end()).bg(value ? t.accent : t.border)
-        .when(enabled, (el) => el.cursor_pointer().on_click(onClick))
-        .child(div().w(16).h(16).rounded(8).bg(value ? t.foreground : t.muted));
+    // The knob slides; while its change runs the switch holds the new value,
+    // pulses, and every switch ignores clicks (one engine call at a time).
+    const sw = (id, value, enabled, onClick) => {
+      const waiting = this.pending?.id === id;
+      const shown = waiting ? this.pending.value : value;
+      return div().id(id).relative().w(36).h(20).flex_shrink_0().rounded(10).bg(shown ? t.accent : t.border)
+        .when(enabled && !this.busy, (el) => el.cursor_pointer().on_click(onClick))
+        .child(div().id(`${id}-knob`).absolute().top(2).left(shown ? 18 : 2).w(16).h(16).rounded(8)
+          .bg(shown ? t.foreground : t.muted)
+          .transition("left", { duration: 160, easing: "ease-out" })
+          .when(waiting, (el) => el.loop("opacity", { from: 1, to: 0.45, period: 900 })));
+    };
     const row = (id, title, detail, control, extra) =>
       h_flex().id(id).gap(16).items_center()
         .child(v_flex().flex_1().min_w(0).gap(2)
@@ -206,9 +218,9 @@ export default class ShareSettings extends View {
     const live = on && !this.busy;
     const settings = v_flex().gap(18).when(!on, (el) => el.opacity(0.45))
       .child(row("sync", "Keep in sync", "Pull and rebase before each push. Push after each turn.",
-        sw("sync-sw", d.keep_in_sync, live, (_e, cx) => this.set(cx, "--keep-in-sync", d.keep_in_sync ? "off" : "on"))))
+        sw("sync-sw", d.keep_in_sync, live, (_e, cx) => this.set(cx, "--keep-in-sync", d.keep_in_sync ? "off" : "on", "sync-sw"))))
       .child(row("close", "Close automatically", "Close the session after 14 days with no activity.",
-        sw("close-sw", d.auto_close, live && owner, (_e, cx) => this.set(cx, "--auto-close", d.auto_close ? "off" : "on"))))
+        sw("close-sw", d.auto_close, live && owner, (_e, cx) => this.set(cx, "--auto-close", d.auto_close ? "off" : "on", "close-sw"))))
       .child(h_flex().id("who").gap(16).items_start()
         .child(v_flex().flex_1().min_w(0).gap(2)
           .child(div().text_size(13).font_semibold().text_color(t.foreground).child("Who can join"))
@@ -256,7 +268,7 @@ export default class ShareSettings extends View {
           .child(label("SPACE NAME"))
           .child(Input.new(this.input).h(40).px(12).rounded(8).border_1().border_color(t.border).bg(t.background).text_size(14).text_color(t.foreground)))
         .child(row("share", "Share this space", toggleDetail,
-          sw("share-sw", on, owner && !this.busy && !this.engineNote, (_e, cx) => this.toggle(cx)), problem))
+          sw("share-sw", on, owner && !this.engineNote, (_e, cx) => this.toggle(cx)), problem))
         .when(Boolean(s) && !owner, (el) => el.child(div().text_size(12).text_color(t.dim).child(`${s.owner} shares this space. Only they can change its settings; Keep in sync is yours.`)))
         .child(settings)
         .when(Boolean(this.engineNote), (el) => el.child(div().text_size(12).text_color(t.dim).child(this.engineNote))))
