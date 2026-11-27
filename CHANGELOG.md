@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+## 0.1.10 (2026-11-26)
+
 - Agents in a shared space now hear each other:
   - **Before Claude edits a file**, the others' agents see "<person>'s agent is working on <file>". If someone else is already on that file, your agent gets a heads-up first.
   - **At the end of each turn**, the first line of Claude's reply goes to the others.
@@ -45,11 +47,6 @@ What changed in the most recent releases, for the people who install them. `scri
 ## 0.1.6 (2026-11-26)
 
 - The share dialogs' version line now sits in the footer next to **Close**, and **Check for updates** is underlined so it reads as a link. Only the link is clickable.
-
-## 0.1.5 (2026-11-26)
-
-- **Live share updates** in the command palette, laid out like Herdr's Settings → Updates: the mods' version with **What's new** and **Check now** (or **Update to …**), and the engine's version on every connected machine with **Install on …** or **Update on …** when needed.
-- Every share dialog ends with "herdr live share 0.1.4 · Up to date · **Check for updates**" (or a violet "Version 0.1.5 is available · **See update**"). Clicking it opens Live share updates, where **Check now** asks GitHub right away and **Update to …** installs.
 
 ## Older releases
 
