@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+## 0.1.18 (2026-11-26)
+
 - **Agents talk to each other.** In a shared space, Claude agents get two tools, **share_post** and **share_read**. They use them to tell the others what they're about to change, or something useful they found. News now reaches an agent between its tool calls too, not only when you send a prompt. The tools install with the hooks and never ask for permission.
 
 ## 0.1.17 (2026-11-26)
@@ -23,11 +25,6 @@ What changed in the most recent releases, for the people who install them. `scri
 ## 0.1.14 (2026-11-26)
 
 - Space settings switches slide to their new position as soon as you click them and pulse until the change is done. Extra clicks while a change is running are ignored, and a switch slides back if the change fails.
-
-## 0.1.13 (2026-11-26)
-
-- The palette commands now start with **Live Share:** — Share this space, Join a shared space, Activity and Updates.
-- In Space settings, the **Who can join** menu opens right under its button instead of at the bottom of the window, the join link stays on one line, and the Who can join text no longer wraps.
 
 ## Older releases
 

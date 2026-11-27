@@ -60,7 +60,7 @@ export async function installEngine(on = null) {
 }
 
 /** This release of the mods. scripts/release keeps it equal to engine/Cargo.toml. */
-export const VERSION = "0.1.17";
+export const VERSION = "0.1.18";
 
 const RELEASES = "https://api.github.com/repos/ConnerTechnology/herdr-live-share/releases/latest";
 const RECHECK = 10 * 60_000;
