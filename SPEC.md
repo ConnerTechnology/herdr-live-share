@@ -50,7 +50,7 @@ Example used throughout: Thomas shares the space "Google Search" (repo `joindele
 
 - When a person opens a tab and starts Claude, their agent gets a short **"Caught up on the shared session"** summary (what was pushed, who is working on what, what is open).
 - A person can run several Claude tabs in a space. **Each tab is its own agent** with its own cursor (what it has already been told). Each gets updates when someone pushes, with a short summary written by the pusher's agent.
-- Updates reach agents at **turn boundaries** (hooks). An idle tab shows a badge for waiting updates. Before an agent edits a file another agent is working on, it gets a heads-up.
+- Updates reach agents at **turn boundaries** and, with 2.6, **between tool calls** (hooks). Agents also post and ask each other questions themselves (2.6). An idle tab shows a badge for waiting updates. Before an agent edits a file another agent is working on, it gets a heads-up.
 - herdr cannot draw inside Claude's terminal UI. Humans see events in the Activity panel; the agent receives the same information as context. Nothing is drawn as cards in the conversation.
 
 ### 2.5 Activity panel (v1: Timeline only)
@@ -81,6 +81,29 @@ Example used throughout: Thomas shares the space "Google Search" (repo `joindele
 | | Closing soon | herdr, when auto-close is on |
 
 Question, Handoff and Conflict render as ordinary Timeline events in v1.
+
+### 2.6 Agents talk to each other (Thomas, 2026-11-26)
+
+Each person talks to their own agent. The agents in a shared space also talk to each other, so each one tells the others what its person is doing and learns what everyone else is doing. Nobody has to be present for that: it all happens in the background.
+
+- **Agents decide what is worth posting.** They are told, when a session starts, to post what other agents would find useful:
+
+| Kind | Example | Goes to |
+|---|---|---|
+| **Working on** | "Changing how drain retries pushes in drain.rs" | Everyone |
+| **Finding** | "The gh CLI caches tokens per host; that explains the sign-in bug" | Everyone |
+| **Second opinion** | "Not sure whether to rebase or merge here. Thoughts?" | Everyone; any agent may answer |
+| **Question** | "Ryan's agent: what did you find out about the GitHub rate limits?" | One person's agent |
+
+  An agent writes its own short posts. It never copies its person's prompt, code or replies word for word.
+- **Agents hear the others** before each prompt (as today), **between tool calls** (so a long task picks up news while it runs), and **before they stop** (so a waiting question gets answered).
+- **A question is answered even when its person is away.** If the asked person's agent is working, it answers at its next tool call. If it is idle, or the person is away, a **copy of that agent answers in the background**: herdr resumes the agent's conversation as a fork, so the copy knows what the agent knows. The fork never changes the original conversation. If there is no conversation to resume, a fresh agent answers from the checkout and the session's history. The copy can only read: the checkout, and `git log`, `git diff` and `git show`. It cannot edit, run other commands, push, ask questions of its own, or read outside the checkout.
+- **Nothing asks first.** No preview, no approval, no prompt: posting, listening and answering are automatic (O6, "just works").
+- **People read the conversation in Activity.** Posts, questions and answers appear in the timeline, with "answered in the background" on answers the copy gave. When a person comes back, their agent's next catch-up starts with what it answered for them.
+- **If a machine is asleep or offline**, its questions wait. The asking agent carries on and gets the answer when it arrives.
+- **Cost.** A background answer is a short `claude -p` run on the answering person's Claude plan. Answers are brief, and each person answers at most 20 questions a day in the background; after that, questions wait for their agent's next turn.
+
+Paper: page "Agents talk".
 
 ## 3. Architecture
 
@@ -455,6 +478,44 @@ To tell the others: herdr-session say task|done|decision|chat "<one line>"
 
 **Hook failure modes.** Offline: digest from local state plus "Can't reach GitHub. Showing the last update from 09:41."; events stay in the outbox. No session: silent. Binary gone: Claude shows a non-blocking hook error (exit 127). Timeout: Claude kills the hook at 15 s; budgets keep the engine under 9 s; every write is a single append under the flock or an atomic replace, so a killed hook leaves no partial state. The hook never exits 2 and never prints errors aimed at the model. Cursor advances only after output is flushed; duplicate delivery is acceptable.
 
+### 9.1 Agents talk: tools, delivery and background answers
+
+**Tools.** The engine is also a small MCP server for Claude, `herdr-session mcp` (stdio). `hooks install` registers it at user scope (`claude mcp add --scope user herdr-live-share -- <bin> mcp`) and adds `mcp__herdr-live-share` to `permissions.allow` in `~/.claude/settings.json`, so its tools never prompt. Outside a shared checkout every tool answers "This folder isn't in a shared space" and writes nothing.
+
+| Tool | Arguments | Does |
+|---|---|---|
+| `share_post` | `kind: working \| finding \| opinion`, `text` (≤ 280 chars) | Appends `Post`; `opinion` also opens a question to everyone and returns its id |
+| `share_ask` | `to` (a login in the session), `text` | Appends `Ask{id, to}`; returns the id at once (never waits) |
+| `share_answer` | `question` (id), `text` | Appends `Answer{question, background: false}` |
+| `share_read` | none | What is new since this agent's cursor, including answers to its questions |
+
+**Ledger events.** New kinds `Post{kind, text}`, `Ask{id, to: Option<login>, text}` (`to: None` is a second opinion) and `Answer{question, text, background}`. They replace the unused `Question`; `Chat`, `Handoff` and `Decision` stay for the v2 Inbox. Older engines fold them as `Unknown`. A question is open until its first answer; later answers still show. Limits per person: 30 posts and 10 questions an hour (the tool says why when it refuses).
+
+**Telling the agent how.** The `SessionStart` digest ends with a short guide: who is in the session, the four kinds of post with one example each, "post only what another agent would act on", "never paste your person's prompt or code", and "answer questions with share_answer".
+
+**Delivery.**
+
+| When | Hook | Budget | Adds |
+|---|---|---|---|
+| Before a prompt | `UserPromptSubmit` (as today) | as today | Posts, questions, answers since the cursor; questions for this person first; "While you were away you answered: …" |
+| Between tool calls | `PostToolUse` on every tool (new) | local only, < 50 ms | Anything new since the cursor, as `additionalContext`; questions for this person say "answer with share_answer" |
+| Before stopping | `Stop` | local only | If a question for this person is open, `decision: block` once per question with "Answer … with share_answer before you stop" |
+
+`PostToolUse` reads only local state, so the news is as fresh as the last fetch: the listener's, every 30 s.
+
+**The listener.** `herdr-session listen` runs detached, one per clone (flock `<common>/herdr-session/listen.lock`; a second one exits at once). It starts silently from `SessionStart`, `start`, `join` and `drain`, fetches the session refs every 30 s, and exits when the session closes or after 24 h with no new event in it. Each pass: fetch; fold; refresh idle badges; start background answers. It does no other work and sleeps between passes. Accepted limit: after a reboot it runs again once any Claude starts in a shared checkout on that machine, or a share dialog opens.
+
+**Background answers.** For each open `Ask` to this person (not second opinions, which agents answer in their own turns):
+
+1. If one of the person's agents is in a turn (`UserPromptSubmit` seen, `Stop` not yet), do nothing: it gets the question at its next tool call.
+2. Else pick the person's most recently active Claude session in this checkout (from the agent cursors, which keep `session_id` and `transcript_path`) and run, with the checkout as cwd and a 3-minute timeout:
+   `claude -p --resume <session_id> --fork-session --no-session-persistence --permission-mode dontAsk --allowedTools "Read(./**)" "Grep(./**)" "Glob(./**)" "Bash(git log:*)" "Bash(git diff:*)" "Bash(git show:*)" mcp__herdr-live-share__share_answer --append-system-prompt "<you are answering for your person while they are away; answer briefly with share_answer; you cannot change anything>" -- "<the question>"`
+   With no session to resume, the same without `--resume`/`--fork-session`, plus the session digest in the prompt.
+3. The run has `HERDR_SESSION_BACKGROUND=1`, so its hooks post nothing and never drain. The answer is appended with `background: true`.
+4. One background answer at a time per clone; at most 20 a day per person; a question still unanswered after two tries waits for the agent's next turn.
+
+**Spike before building:** `--fork-session` on a session that is open in another terminal; whether the `Read`/`Grep`/`Glob` rules keep the copy inside the checkout; `claude mcp add --scope user` from a hook without a prompt; `PostToolUse` `additionalContext` reaching the model; `Stop` `decision: block` once per question.
+
 ## 10. Activity panel
 
 - **Produced** by `timeline_for(at, sync, Human)`: fold, then group items by local day, attach avatar colors by member join order (owner blue, then teal, orange…), return `{days, unread, heads, waiting: [{tab, count}], net}`. Pushed items carry a compare URL for "View changes".
@@ -606,3 +667,4 @@ Still unverified: `watchFolder` outside a repo, `ssh-keygen -Y sign` with an age
 4. **Done (unreleased):** `join --step session|github|access|folder|branch` (`engine/tests/join.rs`), `hooks install|uninstall` (run by `start` and `join`), and `share-join`, checked in the sandbox. Left: the Claude hooks end to end with two real agents (pre-edit, stop, end, drain).
 5. `timeline_for` and `share-activity` (kept window).
 6. Open the chrome PR with Can (6.2, 6.3) with screenshots from steps 3 to 5 as evidence.
+7. **Agents talk (2.6, 9.1),** in this order: the spike; `share_post`, `share_read` and news between tool calls; then `share_ask`, `share_answer`, the listener and background answers; then a test with two real agents in which one asks the other while its person is away.
