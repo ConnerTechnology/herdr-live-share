@@ -37,7 +37,7 @@ Example used throughout: Thomas shares the space "Google Search" (repo `joindele
 
 ### 2.3 Joining
 
-1. The + button stays exactly as today: it creates a space. Sharing is not part of creation. **v1 entry points are two palette entries: "Share this space" and "Join a space".** The space right-click menu row and a + menu row are later chrome work (section 6.2).
+1. The + button stays exactly as today: it creates a space. Sharing is not part of creation. **v1 entry points are two palette entries: "Live Share: Share this space" and "Live Share: Join a shared space" (plus "Live Share: Activity" and "Live Share: Updates").** The space right-click menu row and a + menu row are later chrome work (section 6.2).
 2. The join dialog asks for the share link; **Cancel** (underlined, left) and **Join session**.
 3. Five checks run and animate one by one, each with a green circle and white check on pass, a red circle and white x on fail. **Done** is disabled until all pass. The link box is gone from this screen.
 4. Checks and failures: (1) session found, else "session not found" with an **editable link**; (2) signed in to GitHub, else not signed in; (3) repo access, else no access; (4) worktree folder, else an **editable "Folder for shared sessions"**; (5) shared branch exists, else branch gone. No names in the copy.
@@ -174,18 +174,18 @@ Grounded in `herdr-app` (0.1.18) `defaults/AGENTS.md` and the shipped mods; cita
 // share-settings/mod.json
 { "place": "none", "title": "Space settings",
   "overlay": { "kind": "dialog", "modal": true, "width": 480 },
-  "palette": [{ "title": "Share this space", "command": "mod.open", "args": { "name": "share-settings" }, "group": "Share", "words": "live share pair space settings" }] }
+  "palette": [{ "title": "Live Share: Share this space", "command": "mod.open", "args": { "name": "share-settings" }, "group": "Share", "words": "live share pair space settings" }] }
 
 // share-join/mod.json
 { "place": "none", "title": "Join a space",
   "overlay": { "kind": "dialog", "modal": true, "width": 480 },
   "link_handlers": [{ "kind": "url", "pattern": "^https://herdr\\.dev/join/" }],
-  "palette": [{ "title": "Join a space", "command": "mod.open", "args": { "name": "share-join" }, "group": "Share", "words": "live share join link" }] }
+  "palette": [{ "title": "Live Share: Join a shared space", "command": "mod.open", "args": { "name": "share-join" }, "group": "Share", "words": "live share join link" }] }
 
 // share-activity/mod.json
 { "place": "right", "size": 360, "focusable": true, "title": "Activity",
   "overlay": { "kind": "window", "key": "share-activity", "keep": true, "width": 360, "height": 0.8 },
-  "palette": [{ "title": "Activity", "command": "mod.open", "args": { "name": "share-activity" }, "group": "Share", "words": "live share timeline feed" }] }
+  "palette": [{ "title": "Live Share: Activity", "command": "mod.open", "args": { "name": "share-activity" }, "group": "Share", "words": "live share timeline feed" }] }
 ```
 
 `place: "right"` docks Activity on personal layouts; on `main` it is a kept window.
@@ -247,7 +247,7 @@ export default class Activity extends View {
 
 The Paper screens assume chrome the default layout does not have: an Activity button in the tab bar, a "Share this space" entry in the space right-click menu, an Activity side panel docked in the window. Today the space right-click menu is a fixed list in the shipped `menu` mod (`defaults/mods/menu/main.js`, case `"space"`: Rename, New/Open/Remove worktree for git folders, Close). The + button runs `space.new` directly. There is no space-settings dialog.
 
-**Decision (Thomas): v1 ships with two palette entries only: "Share this space" and "Join a space". The + button is unchanged. The target for later is a "Share this space" row in the space right-click menu, between Rename and Close.**
+**Decision (Thomas): v1 ships with two palette entries only: "Live Share: Share this space" and "Live Share: Join a shared space". The + button is unchanged. The target for later is a "Share this space" row in the space right-click menu, between Rename and Close.**
 
 **Decision (Thomas, 2026-11-27): no herdr-app changes.** A Live Share side panel next to Files and Changes (Paper: page "Live Share panel") would need herdr-app to let mods add a panel button and a panel to its shipped layout. We keep the dialogs instead: Space settings and Join a space from the palette, and Live share updates from the dialogs' footer link (and the palette). 0.1.10 shipped the panel as a floating window; the next release returns to the dialogs and removes `share-panel`.
 
@@ -544,7 +544,7 @@ Decisions for you:
 
 - **O1. Link format.** The mock shows `herdr.dev/join/k7q3m9x4`. With no server the link must carry the repo, so this spec uses `herdr.dev/join/<owner>/<repo>/<code>`. The other design used `herdr.dev/join/<sid>#<descriptor>`. Is a longer link acceptable, or do we want a static herdr.dev page mapping code → repo (a server of a kind)?
 - **O2. Read-only people. Resolved (Thomas, 2026-11-26): (a).** Read-only people join and receive everything but publish nothing; others see them as "read-only". Original question: Settings shows "Read" collaborators, and read-only people can use their agent to ask about the code. But a read-only person cannot push a ledger ref, so they cannot publish "Joined", "working on a file" or turn summaries. Choose: (a) v1: read-only people receive everything (digest, Activity) but publish nothing, and show as "read-only" or not at all to others; (b) v1: add a GitHub-issue mailbox so they can publish; (c) require write access to join. This spec assumes (a).
-- **O3. Entry points. Resolved for v1:** two palette entries, "Share this space" and "Join a space". Chrome rows (space menu, + menu) are deferred to the section 6.2 ask.
+- **O3. Entry points. Resolved for v1:** two palette entries, "Live Share: Share this space" and "Live Share: Join a shared space". Chrome rows (space menu, + menu) are deferred to the section 6.2 ask.
 - **O4. Join check 1 vs 3.** GitHub's 404 on private repos means check 1 cannot always be green first. Is leaving check 1 grey while check 2 or 3 shows the failure acceptable against "animated one by one"?
 - **O5. Identity.** v1 identity is the GitHub login from `gh` signed by a device key; the ssh-signature proof from the earlier design is unverified. Acceptable for v1 because Who can join is cooperative?
 - **O6. Writing `~/.claude/settings.json`. Resolved (Thomas, 2026-11-26): it just works.** Sharing and joining install the hooks silently: no consent line, no toast. Other hooks are preserved, the write is atomic with a backup, and `hooks uninstall` removes exactly ours. Original question: The spec shows a one-time toast as the only consent. Should Start and Join show an explicit "Add Claude hooks" line (a screen we have not designed)?

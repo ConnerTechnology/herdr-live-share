@@ -2,12 +2,11 @@
 // Paper: "Share 0 · Space settings, never shared", "Share 0 · Branch not on
 // GitHub", "Space settings · sharing on / off / choosing who can join".
 //
-// The same mod draws the Who can join menu when opened as a popup with
-// props { picker }. Both read the session from shared("share.spaces")[spaceId],
-// which every engine reply updates, so a change in one shows in the other.
+// The Who can join menu is a Popover anchored to its dropdown. The session is
+// kept in shared("share.spaces")[spaceId], which every engine reply updates.
 import { View, div } from "gpui-kit";
-import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { props, closeOverlay, openOverlay, theme, checking, run, spaces, panes, shared, setShared } from "herdr";
+import { v_flex, h_flex, InputState, Input, Popover } from "gpui-base";
+import { props, closeOverlay, theme, checking, run, spaces, panes, shared, setShared } from "herdr";
 import { engine, installEngine, checkUpdate, newer, machineName, VERSION } from "./engine.js";
 
 const LONG = 90_000; // start and change talk to GitHub
@@ -42,7 +41,6 @@ function avatar(t, login) {
 export default class ShareSettings extends View {
   init(p, cx) {
     this.handle = cx.focus_handle();
-    if ((p ?? props())?.picker) return this.initPicker(p ?? props(), cx);
 
     this.space = spaces().find((s) => s.active) ?? null;
     this.on = this.space?.machine ?? null;
@@ -58,6 +56,11 @@ export default class ShareSettings extends View {
     this.input.on("change", (_e, cx) => { this.name = this.input.value(); cx.notify(); });
     this.input.on("submit", (_e, cx) => this.commitName(cx));
     this.input.on("blur", (_e, cx) => this.commitName(cx));
+    this.pickerOpen = false;
+    this.people = null; // loading
+    this.query = "";
+    this.search = InputState.new({ placeholder: "Search people" });
+    this.search.on("change", (_e, cx) => { this.query = this.search.value(); cx.notify(); });
     this.handle.focus();
     if (checking() || !this.space) return;
     cx.spawn(async (cx) => {
@@ -128,16 +131,19 @@ export default class ShareSettings extends View {
     if (s?.is_owner && s.name !== name) this.set(cx, "--name", name);
   }
 
-  openPicker(cx) {
+  setPicker(cx, open) {
     const s = this.session;
-    if (!s?.is_owner || !s.open) return;
-    openOverlay({
-      mod: "share-settings",
-      kind: "popup",
-      width: 280,
-      height: 360,
-      props: { picker: { spaceId: this.space.id, folder: this.folder, on: this.on } },
-    });
+    this.pickerOpen = open && Boolean(s?.is_owner && s.open);
+    if (this.pickerOpen) {
+      this.search.focus();
+      if (this.people === null) cx.spawn(async (cx) => {
+        const r = await engine(["collaborators", "--cwd", this.folder], { on: this.on, timeout: 30_000 });
+        this.people = r.ok ? r.value : [];
+        this.peopleError = r.ok ? null : r.error.message;
+        cx.notify();
+      });
+    }
+    cx.notify();
   }
 
   installHere(cx) {
@@ -164,7 +170,6 @@ export default class ShareSettings extends View {
   // ---------------------------------------------------------------- the dialog
 
   render(cx) {
-    if (props()?.picker) return this.renderPicker(cx);
     const t = theme();
     const s = this.session;
     const owner = !s || s.is_owner;
@@ -207,14 +212,18 @@ export default class ShareSettings extends View {
       .child(h_flex().id("who").gap(16).items_start()
         .child(v_flex().flex_1().min_w(0).gap(2)
           .child(div().text_size(13).font_semibold().text_color(t.foreground).child("Who can join"))
-          .child(div().text_size(12).text_color(t.muted).child("Leave empty to let everyone with repo access join.")))
-        .child(h_flex().id("who-button").w(260).flex_shrink_0().px(12).py(8).items_center().rounded(8).border_1()
-          .border_color(t.border).bg(t.background)
-          .when(live && owner, (el) => el.cursor_pointer().on_click((_e, cx) => this.openPicker(cx)))
-          .child(div().flex_1().text_size(13).text_color(t.foreground).child(whoLabel(d.who_can_join)))
-          .child(div().text_size(13).text_color(t.muted).child("▾"))))
+          .child(div().text_size(12).text_color(t.muted).child("Anyone with repo access, or only people you pick.")))
+        .child(Popover.new("who-menu").anchor("top_right")
+          .open(this.pickerOpen && live && owner)
+          .on_open_change((open, cx) => this.setPicker(cx, open))
+          .trigger(h_flex().id("who-button").w(220).flex_shrink_0().px(12).py(8).gap(8).items_center().rounded(8).border_1()
+            .border_color(this.pickerOpen ? t.accent : t.border).bg(t.background)
+            .when(live && owner, (el) => el.cursor_pointer())
+            .child(div().flex_1().min_w(0).whitespace_nowrap().overflow_hidden().text_ellipsis().text_size(13).text_color(t.foreground).child(whoLabel(d.who_can_join)))
+            .child(div().text_size(13).text_color(t.muted).child("▾")))
+          .content(this.renderPicker(cx))))
       .child(h_flex().id("link").px(12).py(10).gap(12).items_center().rounded(8).border_1().border_color(t.border).bg(t.background)
-        .child(div().flex_1().min_w(0).font_family("JetBrains Mono").text_size(13)
+        .child(div().flex_1().min_w(0).whitespace_nowrap().overflow_hidden().text_ellipsis_middle().font_family("JetBrains Mono").text_size(13)
           .text_color(d.link ? t.foreground : t.muted)
           .child(d.link ? d.link.replace(/^https:\/\//, "") : "herdr.dev/join/…"))
         .child(h_flex().id("copy").flex_shrink_0().px(12).py(6).rounded(6).bg(t.accent).text_size(12).font_semibold().text_color(t.accent_foreground)
@@ -231,7 +240,8 @@ export default class ShareSettings extends View {
       .track_focus(this.handle)
       .on_key_down((e, cx) => {
         if (e.key !== "escape") return;
-        this.close();
+        if (this.pickerOpen) this.setPicker(cx, false);
+        else this.close();
         cx.stop_propagation();
       })
       .size_full()
@@ -267,35 +277,19 @@ export default class ShareSettings extends View {
 
   // ---------------------------------------------------------------- the Who can join menu
 
-  initPicker(p, cx) {
-    this.picker = p.picker;
-    this.people = null; // loading
-    this.query = "";
-    this.search = InputState.new({ placeholder: "Search people" });
-    this.search.on("change", (_e, cx) => { this.query = this.search.value(); cx.notify(); });
-    this.search.focus();
-    if (checking()) return;
-    cx.spawn(async (cx) => {
-      const r = await engine(["collaborators", "--cwd", this.picker.folder], { on: this.picker.on, timeout: 30_000 });
-      this.people = r.ok ? r.value : [];
-      this.peopleError = r.ok ? null : r.error.message;
-      cx.notify();
-    });
-  }
-
   pick(cx, login) {
-    const s = recalled(this.picker.spaceId);
+    const s = this.session;
     if (!s || this.saving) return;
     const chosen = new Set(s.who_can_join.anyone ? [] : s.who_can_join.logins);
     if (chosen.has(login)) chosen.delete(login);
     else chosen.add(login);
     // Show it at once; the engine's reply confirms it.
-    remember(this.picker.spaceId, { ...s, who_can_join: { anyone: chosen.size === 0, logins: [...chosen].sort() } });
+    remember(this.space.id, { ...s, who_can_join: { anyone: chosen.size === 0, logins: [...chosen].sort() } });
     this.saving = true;
     cx.spawn(async (cx) => {
-      const r = await engine(["change", "--cwd", this.picker.folder, "--who", chosen.size ? [...chosen].join(",") : "anyone"], { on: this.picker.on, timeout: LONG });
+      const r = await engine(["change", "--cwd", this.folder, "--who", chosen.size ? [...chosen].join(",") : "anyone"], { on: this.on, timeout: LONG });
       this.saving = false;
-      remember(this.picker.spaceId, r.ok ? r.value : s);
+      remember(this.space.id, r.ok ? r.value : s);
       this.peopleError = r.ok ? null : r.error.message;
       cx.notify();
     });
@@ -303,19 +297,15 @@ export default class ShareSettings extends View {
 
   renderPicker(cx) {
     const t = theme();
-    const s = recalled(this.picker.spaceId);
+    const s = this.session;
     const chosen = new Set(s && !s.who_can_join.anyone ? s.who_can_join.logins : []);
     const q = this.query.trim().toLowerCase();
     const people = (this.people ?? []).filter((p) => !q || p.login.toLowerCase().includes(q));
     return v_flex()
       .id("who-picker")
-      .track_focus(this.handle)
-      .on_key_down((e, cx) => {
-        if (e.key !== "escape") return;
-        closeOverlay(props()?.overlay);
-        cx.stop_propagation();
-      })
-      .size_full()
+      .w(280)
+      .max_h(320)
+      .mt(4)
       .rounded(8)
       .border_1()
       .border_color(t.accent)
@@ -333,7 +323,7 @@ export default class ShareSettings extends View {
               .border_color(on ? t.accent : t.muted).bg(on ? t.accent : t.popover)
               .when(on, (el) => el.child(div().text_size(10).font_semibold().text_color(t.accent_foreground).child("✓"))))
             .child(div().w(20).h(20).flex_shrink_0().rounded(10).bg(avatar(t, p.login)))
-            .child(div().flex_1().min_w(0).font_family("JetBrains Mono").text_size(13).text_color(t.foreground).child(p.login))
+            .child(div().flex_1().min_w(0).whitespace_nowrap().overflow_hidden().text_ellipsis_middle().font_family("JetBrains Mono").text_size(13).text_color(t.foreground).child(p.login))
             .child(div().text_size(12).text_color(t.muted).child(p.permission === "write" ? "Read/Write" : "Read"));
         })));
   }

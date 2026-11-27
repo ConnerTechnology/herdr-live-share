@@ -4,6 +4,9 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+- The palette commands now start with **Live Share:** — Share this space, Join a shared space, Activity and Updates.
+- In Space settings, the **Who can join** menu opens right under its button instead of at the bottom of the window, the join link stays on one line, and the Who can join text no longer wraps.
+
 ## 0.1.12 (2026-11-26)
 
 - **Live share updates** is now just two buttons: **Update mods and engines**, greyed out when there's nothing to update, and **What's new**. It checks GitHub each time it opens, so **Check now** is gone.

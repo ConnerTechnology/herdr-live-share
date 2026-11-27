@@ -1,3 +1,3 @@
 { "place": "none", "title": "Live share updates",
   "overlay": { "kind": "dialog", "modal": true, "width": 640 },
-  "palette": [{ "title": "Live share updates", "command": "mod.open", "args": { "name": "share-updates" }, "group": "Share", "words": "herdr live share update version check engine release notes" }] }
+  "palette": [{ "title": "Live Share: Updates", "command": "mod.open", "args": { "name": "share-updates" }, "group": "Share", "words": "herdr live share update version check engine release notes" }] }
