@@ -87,13 +87,13 @@ pub fn bind(at: &Checkout, b: &Binding) -> std::io::Result<()> {
     write_atomic(&binding_path(at), &serde_json::to_vec_pretty(b).unwrap())
 }
 
-fn own_ref(sid: &SessionId, tag: &DeviceTag) -> String {
+pub fn own_ref(sid: &SessionId, tag: &DeviceTag) -> String {
     format!("refs/herdr/s/{}/m/{}", sid.code(), tag.0)
 }
 
 /// The refspec that brings everyone's streams into refs/herdr-seen, which
 /// never overwrites our own stream.
-fn seen_refspec(sid: &SessionId) -> String {
+pub fn seen_refspec(sid: &SessionId) -> String {
     format!("+refs/herdr/s/{c}/*:refs/herdr-seen/{c}/*", c = sid.code())
 }
 
@@ -236,8 +236,12 @@ pub fn sync(at: &Checkout, b: &Binding, timeout: Duration) -> NetStatus {
 
 /// Fold every stream this clone has for the session (ours and fetched).
 pub fn load(at: &Checkout, b: &Binding, now: Ms) -> Result<Fold, Error> {
-    let repo = at.repo();
-    let sid = b.sid();
+    load_repo(&at.repo(), &b.sid(), now)
+}
+
+/// Fold every stream a repository (a checkout or a bare clone) has for a session.
+pub fn load_repo(repo: &crate::git::Repo, sid: &SessionId, now: Ms) -> Result<Fold, Error> {
+    let sid = *sid;
     let mut streams = Vec::new();
     for prefix in [format!("refs/herdr/s/{}/m/", sid.code()), format!("refs/herdr-seen/{}/m/", sid.code())] {
         for (name, _) in repo.refs(&prefix)? {

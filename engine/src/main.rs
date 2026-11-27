@@ -4,7 +4,7 @@
 //! `hook <event>` is the exception: it prints only what Claude Code expects.
 
 use herdr_session::api::{self, ApiError, Change};
-use herdr_session::claude;
+use herdr_session::{claude, join};
 use herdr_session::util::now_ms;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -71,7 +71,17 @@ fn run(verb: &str, o: &Opts) -> Result<Value, ApiError> {
             to_json(api::change(&at, c, now)?)
         }
         "collaborators" => to_json(api::collaborators(&o.checkout()?)?),
-        "join" | "sync" | "timeline" | "say" | "hooks" | "doctor" | "drain" => {
+        "join" => {
+            let link = o.get("link").ok_or_else(|| usage("join needs --link"))?;
+            let step = o.get("step").and_then(join::Step::parse).ok_or_else(|| usage("join needs --step session|github|access|folder|branch"))?;
+            to_json(join::step(link, step, o.get("folder").map(std::path::Path::new), now)?)
+        }
+        "hooks" => {
+            let io = |e: std::io::Error| ApiError { kind: "Io", message: e.to_string() };
+            let changed = if o.0.contains_key("uninstall") { claude::uninstall_hooks().map_err(io)? } else { claude::install_hooks().map_err(io)? };
+            Ok(json!({ "changed": changed, "settings": claude::settings_path() }))
+        }
+        "sync" | "timeline" | "say" | "doctor" | "drain" => {
             Err(ApiError { kind: "NotImplemented", message: format!("`{verb}` is not built yet") })
         }
         "" => Err(usage("usage: herdr-session <verb> [--cwd DIR] [options]")),
@@ -95,7 +105,7 @@ fn on(v: &str) -> Result<bool, ApiError> {
     }
 }
 
-/// `--key value` pairs and bare `--flag`s.
+/// `--key value` pairs, bare `--flag`s and bare words.
 struct Opts(BTreeMap<String, Option<String>>);
 
 impl Opts {
@@ -108,6 +118,8 @@ impl Opts {
                 i += if v.is_some() { 2 } else { 1 };
                 m.insert(k.to_string(), v);
             } else {
+                // A bare word (`hooks uninstall`) reads as a flag.
+                m.insert(args[i].clone(), None);
                 i += 1;
             }
         }

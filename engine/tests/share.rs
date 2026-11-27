@@ -67,6 +67,9 @@ impl Person {
             .current_dir(&self.dir)
             .env("HERDR_SESSION_HOME", &self.home)
             .env("HERDR_SESSION_LOGIN", &self.login)
+            // Sharing installs Claude hooks: into this person's own folder, never the real ~/.claude.
+            .env("HOME", &self.home)
+            .env("CLAUDE_CONFIG_DIR", self.home.join(".claude"))
             .env("GIT_AUTHOR_NAME", "t")
             .env("GIT_AUTHOR_EMAIL", "t@t")
             .env("GIT_COMMITTER_NAME", "t")
@@ -124,6 +127,12 @@ fn share_a_space_end_to_end() {
     assert_eq!((s["auto_close"].as_bool(), s["keep_in_sync"].as_bool()), (Some(false), Some(true)), "defaults: auto-close off, keep in sync on");
     assert_eq!(s["who_can_join"], serde_json::json!({ "anyone": true, "logins": [] }));
     assert!(git(&w.remote, &["for-each-ref", &format!("refs/herdr/s/{code}/")]).lines().count() == 1);
+
+    // Sharing installed the Claude hooks, once, keeping nothing else out.
+    let settings: Value = serde_json::from_slice(&std::fs::read(thomas.home.join(".claude/settings.json")).unwrap()).unwrap();
+    let prompt = settings["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"].as_str().unwrap();
+    assert!(prompt.ends_with("herdr-session hook prompt"), "{prompt}");
+    assert_eq!(settings["hooks"]["PreToolUse"][0]["matcher"], "Edit|Write|MultiEdit|NotebookEdit");
 
     // Start twice: the same session.
     assert_eq!(thomas.ok(&["start", "--name", "Google Search"])["code"], code.as_str());

@@ -4,6 +4,18 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+- **Join a space** is real. Paste a share link and five steps run one by one:
+  1. Find the session on GitHub.
+  2. Check your GitHub sign-in.
+  3. Check your access to the repository and Who can join.
+  4. Create your worktree in `~/herdr-sessions/<repo>/<branch>`.
+  5. Check out the branch.
+
+  Each failure says why and offers its fix: edit the link, sign in to GitHub, change the folder, or try again. The space then appears in the sidebar without opening a tab.
+- With more than one machine connected, **On <machine>** picks where the joined copy goes.
+- Sharing and joining set up the Claude hooks in `~/.claude/settings.json` on their own. Your other hooks and settings are kept. `herdr-session hooks uninstall` removes exactly ours.
+- People with read-only access can join and follow along. They publish nothing.
+
 ## 0.1.8 (2026-11-26)
 
 - Space settings always shows the settings under **Share this space**. While sharing is off, including before the first share, they're greyed out to 45% and disabled.

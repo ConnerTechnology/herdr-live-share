@@ -171,6 +171,8 @@ pub fn status(at: &Checkout, now: Ms) -> Result<StatusReply, ApiError> {
 /// session (its link is returned only once the genesis is pushed); a closed one
 /// is reopened with the same link; an open one is returned as is.
 pub fn start(at: &Checkout, name: &str, now: Ms) -> Result<Summary, ApiError> {
+    // The Claude hooks are what make a shared space work for agents: always there (O6).
+    let _ = crate::claude::install_hooks();
     if session::binding(at).is_some() {
         // Already shared from here: `change` checks ownership and reopens (a no-op when open).
         return change(at, Change::Sharing(true), now);

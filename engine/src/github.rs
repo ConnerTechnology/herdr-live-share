@@ -76,6 +76,33 @@ pub fn login() -> Result<String, GhError> {
     Ok(l)
 }
 
+/// This person's access to a repo: Some("write"), Some("read"), or None
+/// (no access; GitHub answers 404 for a private repo you cannot read).
+pub fn permission(repo: &GitHubRepo) -> Result<Option<&'static str>, GhError> {
+    let path = format!("repos/{}/{}", repo.owner, repo.name);
+    match gh(&["api", &path, "--jq", "[.permissions.push, .permissions.pull] | @tsv"]) {
+        Ok(out) => {
+            let mut it = out.trim().split('\t');
+            let push = it.next() == Some("true");
+            let pull = it.next() == Some("true");
+            Ok(if push { Some("write") } else if pull { Some("read") } else { None })
+        }
+        Err(GhError::Failed(m)) if m.contains("404") || m.contains("Not Found") => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+/// The URL git should use for a repo: ssh when the person told gh to use ssh, else https
+/// (which gh's credential helper signs in).
+pub fn clone_url(repo: &GitHubRepo) -> String {
+    let ssh = gh(&["config", "get", "git_protocol", "-h", "github.com"]).map(|p| p.trim() == "ssh").unwrap_or(false);
+    if ssh {
+        format!("git@github.com:{}/{}.git", repo.owner, repo.name)
+    } else {
+        format!("https://github.com/{}/{}.git", repo.owner, repo.name)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Collaborator {
     pub login: String,

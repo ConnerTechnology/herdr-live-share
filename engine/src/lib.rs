@@ -4,6 +4,7 @@ pub mod api;
 pub mod claude;
 pub mod git;
 pub mod github;
+pub mod join;
 pub mod ledger;
 pub mod session;
 pub mod util;

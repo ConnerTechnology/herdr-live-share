@@ -112,3 +112,102 @@ fn catch_up(event: HookEvent, at: &Checkout, b: &Binding, agent: &str, fetch: Du
         })),
     }
 }
+
+// ---------------------------------------------------------------- installing the hooks
+
+/// ~/.claude/settings.json, or $CLAUDE_CONFIG_DIR/settings.json.
+pub fn settings_path() -> PathBuf {
+    match std::env::var_os("CLAUDE_CONFIG_DIR") {
+        Some(d) => PathBuf::from(d).join("settings.json"),
+        None => PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".claude/settings.json"),
+    }
+}
+
+/// (Claude event, matcher, our hook verb).
+const HOOKS: [(&str, Option<&str>, &str); 5] = [
+    ("SessionStart", None, "start"),
+    ("UserPromptSubmit", None, "prompt"),
+    ("PreToolUse", Some("Edit|Write|MultiEdit|NotebookEdit"), "pre-edit"),
+    ("Stop", None, "stop"),
+    ("SessionEnd", None, "end"),
+];
+
+fn is_ours(hook: &serde_json::Value) -> bool {
+    hook.get("command").and_then(|c| c.as_str()).is_some_and(|c| c.contains("herdr-session") && c.contains(" hook "))
+}
+
+/// Remove our hooks from a settings document; drop groups and events left empty.
+fn strip(doc: &mut serde_json::Value) {
+    let Some(hooks) = doc.get_mut("hooks").and_then(|h| h.as_object_mut()) else { return };
+    for groups in hooks.values_mut() {
+        let Some(list) = groups.as_array_mut() else { continue };
+        for g in list.iter_mut() {
+            if let Some(hs) = g.get_mut("hooks").and_then(|h| h.as_array_mut()) {
+                hs.retain(|h| !is_ours(h));
+            }
+        }
+        list.retain(|g| g.get("hooks").and_then(|h| h.as_array()).is_none_or(|h| !h.is_empty()));
+    }
+    hooks.retain(|_, v| v.as_array().is_none_or(|a| !a.is_empty()));
+    if hooks.is_empty() {
+        doc.as_object_mut().unwrap().remove("hooks");
+    }
+}
+
+/// Our five hooks in Claude Code's user settings, pointing at this binary.
+/// Keeps every other setting and hook. Writes only when something changes,
+/// atomically, after saving a one-time backup. Safe to run on every share and join.
+pub fn install_hooks() -> std::io::Result<bool> {
+    let exe = std::env::current_exe()?;
+    let exe = exe.to_string_lossy();
+    let cmd = |verb: &str| if exe.contains(' ') { format!("'{exe}' hook {verb}") } else { format!("{exe} hook {verb}") };
+    edit_settings(|doc| {
+        strip(doc);
+        let obj = doc.as_object_mut().unwrap();
+        let hooks = obj.entry("hooks").or_insert_with(|| serde_json::json!({}));
+        let Some(hooks) = hooks.as_object_mut() else { return };
+        for (event, matcher, verb) in HOOKS {
+            let mut group = serde_json::json!({ "hooks": [{ "type": "command", "command": cmd(verb) }] });
+            if let Some(m) = matcher {
+                group["matcher"] = m.into();
+            }
+            let list = hooks.entry(event).or_insert_with(|| serde_json::json!([]));
+            if let Some(list) = list.as_array_mut() {
+                list.push(group);
+            }
+        }
+    })
+}
+
+/// Remove exactly our hooks.
+pub fn uninstall_hooks() -> std::io::Result<bool> {
+    edit_settings(strip)
+}
+
+fn edit_settings(f: impl FnOnce(&mut serde_json::Value)) -> std::io::Result<bool> {
+    let path = settings_path();
+    let old = std::fs::read(&path).ok();
+    let mut doc: serde_json::Value = match &old {
+        Some(b) if !b.iter().all(u8::is_ascii_whitespace) => serde_json::from_slice(b)
+            .map_err(|e| std::io::Error::other(format!("{} is not valid JSON ({e}); left as is", path.display())))?,
+        _ => serde_json::json!({}),
+    };
+    if !doc.is_object() {
+        return Err(std::io::Error::other(format!("{} is not a JSON object; left as is", path.display())));
+    }
+    let before = doc.clone();
+    f(&mut doc);
+    if doc == before {
+        return Ok(false);
+    }
+    if let Some(b) = &old {
+        let backup = path.with_extension("json.herdr-backup");
+        if !backup.exists() {
+            std::fs::write(&backup, b)?;
+        }
+    }
+    let mut text = serde_json::to_string_pretty(&doc).unwrap();
+    text.push('\n');
+    session::write_atomic(&path, text.as_bytes())?;
+    Ok(true)
+}
