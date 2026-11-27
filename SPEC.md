@@ -96,8 +96,8 @@ Each person talks to their own agent. The agents in a shared space also talk to 
 | **Question** | "Ryan's agent: what did you find out about the GitHub rate limits?" | One person's agent |
 
   An agent writes its own short posts. It never copies its person's prompt, code or replies word for word.
-- **Agents hear the others** before each prompt (as today), **between tool calls** (so a long task picks up news while it runs), and **before they stop** (so a waiting question gets answered).
-- **A question is answered even when its person is away.** If the asked person's agent is working, it answers at its next tool call. If it is idle, or the person is away, a **copy of that agent answers in the background**: herdr resumes the agent's conversation as a fork, so the copy knows what the agent knows. The fork never changes the original conversation. If there is no conversation to resume, a fresh agent answers from the checkout and the session's history. The copy can only read: the checkout, and `git log`, `git diff` and `git show`. It cannot edit, run other commands, push, ask questions of its own, or read outside the checkout.
+- **Agents hear the others** before each prompt (as today) and **between tool calls** (so a long task picks up news while it runs).
+- **A question is answered even when its person is away.** If the asked person's agent is working, it answers at its next tool call. If it is idle, or the person is away, a **copy of that agent answers in the background**: herdr resumes the agent's conversation as a fork, so the copy knows what the agent knows. The fork never changes the original conversation. If there is no conversation to resume, a fresh agent answers from the checkout and the session's history. The copy can only read files in the checkout. It cannot edit, run commands, push, ask questions of its own, or read outside the checkout.
 - **Nothing asks first.** No preview, no approval, no prompt: posting, listening and answering are automatic (O6, "just works").
 - **People read the conversation in Activity.** Posts, questions and answers appear in the timeline, with "answered in the background" on answers the copy gave. When a person comes back, their agent's next catch-up starts with what it answered for them.
 - **If a machine is asleep or offline**, its questions wait. The asking agent carries on and gets the answer when it arrives.
@@ -480,13 +480,13 @@ To tell the others: herdr-session say task|done|decision|chat "<one line>"
 
 ### 9.1 Agents talk: tools, delivery and background answers
 
-**Tools.** The engine is also a small MCP server for Claude, `herdr-session mcp` (stdio). `hooks install` registers it at user scope (`claude mcp add --scope user herdr-live-share -- <bin> mcp`) and adds `mcp__herdr-live-share` to `permissions.allow` in `~/.claude/settings.json`, so its tools never prompt. Outside a shared checkout every tool answers "This folder isn't in a shared space" and writes nothing.
+**Tools.** The engine is also a small MCP server for Claude, `herdr-session mcp` (stdio). `hooks install` registers it at user scope (`claude mcp add --scope user herdr-live-share -- <bin> mcp`, only when `claude mcp get herdr-live-share` finds none: a second add fails with "already exists") and adds `mcp__herdr-live-share` to `permissions.allow` in `~/.claude/settings.json`, so its tools never prompt. Outside a shared checkout every tool answers "This folder isn't in a shared space" and writes nothing.
 
 | Tool | Arguments | Does |
 |---|---|---|
 | `share_post` | `kind: working \| finding \| opinion`, `text` (≤ 280 chars) | Appends `Post`; `opinion` also opens a question to everyone and returns its id |
 | `share_ask` | `to` (a login in the session), `text` | Appends `Ask{id, to}`; returns the id at once (never waits) |
-| `share_answer` | `question` (id), `text` | Appends `Answer{question, background: false}` |
+| `share_answer` | `question` (id, or the question's text), `text` | Appends `Answer{question, background: false}`; a text that is not an id is matched to the open question it quotes, else to the only open question for this person |
 | `share_read` | none | What is new since this agent's cursor, including answers to its questions |
 
 **Ledger events.** New kinds `Post{kind, text}`, `Ask{id, to: Option<login>, text}` (`to: None` is a second opinion) and `Answer{question, text, background}`. They replace the unused `Question`; `Chat`, `Handoff` and `Decision` stay for the v2 Inbox. Older engines fold them as `Unknown`. A question is open until its first answer; later answers still show. Limits per person: 30 posts and 10 questions an hour (the tool says why when it refuses).
@@ -499,7 +499,6 @@ To tell the others: herdr-session say task|done|decision|chat "<one line>"
 |---|---|---|---|
 | Before a prompt | `UserPromptSubmit` (as today) | as today | Posts, questions, answers since the cursor; questions for this person first; "While you were away you answered: …" |
 | Between tool calls | `PostToolUse` on every tool (new) | local only, < 50 ms | Anything new since the cursor, as `additionalContext`; questions for this person say "answer with share_answer" |
-| Before stopping | `Stop` | local only | If a question for this person is open, `decision: block` once per question with "Answer … with share_answer before you stop" |
 
 `PostToolUse` reads only local state, so the news is as fresh as the last fetch: the listener's, every 30 s.
 
@@ -509,12 +508,22 @@ To tell the others: herdr-session say task|done|decision|chat "<one line>"
 
 1. If one of the person's agents is in a turn (`UserPromptSubmit` seen, `Stop` not yet), do nothing: it gets the question at its next tool call.
 2. Else pick the person's most recently active Claude session in this checkout (from the agent cursors, which keep `session_id` and `transcript_path`) and run, with the checkout as cwd and a 3-minute timeout:
-   `claude -p --resume <session_id> --fork-session --no-session-persistence --permission-mode dontAsk --allowedTools "Read(./**)" "Grep(./**)" "Glob(./**)" "Bash(git log:*)" "Bash(git diff:*)" "Bash(git show:*)" mcp__herdr-live-share__share_answer --append-system-prompt "<you are answering for your person while they are away; answer briefly with share_answer; you cannot change anything>" -- "<the question>"`
+   `claude -p --resume <session_id> --fork-session --no-session-persistence --permission-mode dontAsk --allowedTools "Read(./**)" "Grep(./**)" "Glob(./**)" mcp__herdr-live-share__share_answer --append-system-prompt "<you are answering for your person while they are away; answer briefly with share_answer; you cannot change anything>" -- "<the question>"`
    With no session to resume, the same without `--resume`/`--fork-session`, plus the session digest in the prompt.
 3. The run has `HERDR_SESSION_BACKGROUND=1`, so its hooks post nothing and never drain. The answer is appended with `background: true`.
 4. One background answer at a time per clone; at most 20 a day per person; a question still unanswered after two tries waits for the agent's next turn.
 
-**Spike before building:** `--fork-session` on a session that is open in another terminal; whether the `Read`/`Grep`/`Glob` rules keep the copy inside the checkout; `claude mcp add --scope user` from a hook without a prompt; `PostToolUse` `additionalContext` reaching the model; `Stop` `decision: block` once per question.
+**Spike results (2026-11-26, Claude Code 2.1.332, Haiku):**
+
+| Question | Result |
+|---|---|
+| Fork a conversation | `--resume <id> --fork-session --no-session-persistence` knew the conversation's facts, left its transcript byte-identical and wrote no new session file. Run while the same conversation was resumed elsewhere, both worked; the fork read the latest state. |
+| Keep the copy read-only, inside the checkout | With `--permission-mode dontAsk` and the rules above: reading inside the checkout worked; reading outside it (a file next to the repo, `/etc/hostname`), `Grep`/`Glob` outside, any `Bash`, and `Edit` were all refused, and the outside file's contents never reached the output. `Bash(git log:*)` and friends were dropped: `git diff --output=<file>` writes files. |
+| Install the tools silently | `claude mcp add --scope user` adds the server with no prompt (exit 0). A second add fails with "already exists", hence the `mcp get` check. |
+| Pre-approved tools | With `mcp__<server>` in `permissions.allow`, the tool ran in `-p` mode with no prompt. Tools are deferred: the agent loads them through ToolSearch first, which works on its own. |
+| News between tool calls | `PostToolUse` `additionalContext` reached the model; it quoted the text word for word. |
+| Answer before stopping | `Stop` with `decision: block` made the agent answer, but Claude Code tells the person "stop hook problem · ctrl+o to see". **Dropped:** a question reaches a working agent at its next tool call, and once the agent stops it is idle, so the background copy answers. |
+| The agent's question reference | Asked to answer question "q7", the agent passed the question's text instead of the id, hence `share_answer` accepting either. |
 
 ## 10. Activity panel
 
