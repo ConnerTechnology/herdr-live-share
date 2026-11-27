@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+## 0.1.15 (2026-11-26)
+
 - The **Who can join** menu looks like herdr's own menus. It has a search row, an **Anyone with repo access** choice, and checkmarks next to the people you pick.
 - **Copy** now has a copy icon. After you click it, it shows **Copied** with a checkmark for 2 seconds, and the button no longer changes size.
 
@@ -24,17 +26,6 @@ What changed in the most recent releases, for the people who install them. `scri
 
 - Back to the dialogs. **Share this space** opens Space settings, **Join a space** stays the same, and each dialog's footer links to **Live share updates**. The Live Share panel from 0.1.10 is removed on update. Docking it next to Files and Changes would have needed a change to herdr-app.
 - **Live share updates** keeps the one-button update from 0.1.10: **Update to …** updates the mods and every engine, or **Update engines** when only an engine is behind. It no longer lists machines.
-
-## 0.1.10 (2026-11-26)
-
-- Agents in a shared space now hear each other:
-  - **Before Claude edits a file**, the others' agents see "<person>'s agent is working on <file>". If someone else is already on that file, your agent gets a heads-up first.
-  - **At the end of each turn**, the first line of Claude's reply goes to the others.
-  - **After each turn**, with **Keep in sync** on, new commits are pushed: pull with rebase, then push. On a conflict the rebase is undone, nothing is pushed, and your agent hears about it on its next turn. herdr never commits for you.
-  - **Pushes made from a terminal or an IDE** are noticed and shown to the others once.
-- Each checkout signs with its own key. Two checkouts of one session on the same machine no longer compete for the same event stream.
-- **The Live Share panel** replaces Space settings and Live share updates. Its **Share** tab holds the space name and every sharing setting. Its **Updates** tab holds the version and one update button. It follows the space you're looking at. Until herdr-app lets mods add a button next to Files and Changes, open it with **Live Share** in the command palette; it opens where you last left it. Otherwise the command palette is only for **Join a space**. Space settings, Live share updates and the Activity placeholder are removed on update.
-- **Updates** has one button. **Update to …** updates the mods and the engine on every connected machine. When the mods are current but an engine is behind or missing, the button reads **Update engines** and updates them all. The dialog no longer lists machines.
 
 ## Older releases
 
