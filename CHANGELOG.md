@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+## 0.1.16 (2026-11-26)
+
 - The **Who can join** menu no longer has an **Anyone with repo access** row. Leave everyone unticked to let anyone with repo access join, as the button says.
 
 ## 0.1.15 (2026-11-26)
@@ -23,11 +25,6 @@ What changed in the most recent releases, for the people who install them. `scri
 ## 0.1.12 (2026-11-26)
 
 - **Live share updates** is now just two buttons: **Update mods and engines**, greyed out when there's nothing to update, and **What's new**. It checks GitHub each time it opens, so **Check now** is gone.
-
-## 0.1.11 (2026-11-26)
-
-- Back to the dialogs. **Share this space** opens Space settings, **Join a space** stays the same, and each dialog's footer links to **Live share updates**. The Live Share panel from 0.1.10 is removed on update. Docking it next to Files and Changes would have needed a change to herdr-app.
-- **Live share updates** keeps the one-button update from 0.1.10: **Update to …** updates the mods and every engine, or **Update engines** when only an engine is behind. It no longer lists machines.
 
 ## Older releases
 
