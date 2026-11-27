@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+## 0.1.12 (2026-11-26)
+
 - **Live share updates** is now just two buttons: **Update mods and engines**, greyed out when there's nothing to update, and **What's new**. It checks GitHub each time it opens, so **Check now** is gone.
 
 ## 0.1.11 (2026-11-26)
@@ -39,17 +41,6 @@ What changed in the most recent releases, for the people who install them. `scri
 ## 0.1.8 (2026-11-26)
 
 - Space settings always shows the settings under **Share this space**. While sharing is off, including before the first share, they're greyed out to 45% and disabled.
-
-## 0.1.7 (2026-11-26)
-
-- **Share this space** is real. The toggle starts a session at once. There's no check for uncommitted or unpushed work: the only requirement is that the branch is on GitHub. Turning it off closes the session, and turning it on again reopens it with the same link.
-- While a space is shared, Space settings shows four things:
-  - **Keep in sync**: your own setting, on by default.
-  - **Close automatically**: closes the session after 14 days with no activity.
-  - **Who can join**: everyone with repo access, or people you pick from the repo's collaborators.
-  - **The join link**, with **Copy**.
-- Renaming the space also renames the session.
-- The engine adds `start`, `change`, `status` and `collaborators`.
 
 ## Older releases
 
