@@ -128,8 +128,10 @@ case $mode in
   *)
     install_engine
     if app_here; then
-      install_mods
+      # Engines everywhere first, mods last: replacing the mods reloads the
+      # open dialogs, and they check every engine as they reload.
       install_remote_engines
+      install_mods
       say ""
       say "Done. In herdr-app, open the command palette and run \"Share this space\" or \"Join a space\"."
     else
