@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+## 0.1.11 (2026-11-26)
+
 - Back to the dialogs. **Share this space** opens Space settings, **Join a space** stays the same, and each dialog's footer links to **Live share updates**. The Live Share panel from 0.1.10 is removed on update. Docking it next to Files and Changes would have needed a change to herdr-app.
 - **Live share updates** keeps the one-button update from 0.1.10: **Update to …** updates the mods and every engine, or **Update engines** when only an engine is behind. It no longer lists machines.
 
@@ -46,10 +48,6 @@ What changed in the most recent releases, for the people who install them. `scri
   - **The join link**, with **Copy**.
 - Renaming the space also renames the session.
 - The engine adds `start`, `change`, `status` and `collaborators`.
-
-## 0.1.6 (2026-11-26)
-
-- The share dialogs' version line now sits in the footer next to **Close**, and **Check for updates** is underlined so it reads as a link. Only the link is clickable.
 
 ## Older releases
 
