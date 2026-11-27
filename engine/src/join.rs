@@ -274,6 +274,7 @@ fn check_out(repo: &Repo, fold: &Fold, login: &str, permission: &str, path: &Pat
         session::sync(&at, &b, NET);
     }
     let _ = crate::claude::install_hooks();
+    crate::listen::ensure(&at);
     Ok(())
 }
 

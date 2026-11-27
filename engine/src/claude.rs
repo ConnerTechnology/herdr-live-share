@@ -89,11 +89,22 @@ impl Reply {
 /// Runs one hook. The caller prints `out`, flushes, then runs `after`
 /// (a cursor moves only once the agent has the text; a repeat is acceptable, a gap is not).
 pub fn hook(event: HookEvent, stdin: &str) -> Reply {
+    if std::env::var_os(crate::listen::BACKGROUND).is_some() {
+        return Reply::silent(); // a background answer: it says nothing, posts nothing, pushes nothing
+    }
     let Ok(input) = serde_json::from_str::<HookInput>(stdin) else { return Reply::silent() };
     let Some(at) = Checkout::discover(&input.cwd) else { return Reply::silent() };
     let Some(b) = session::binding(&at) else { return Reply::silent() }; // not a shared checkout: silent, fast
+    // What the listener needs: is this agent mid-turn, and which conversation is it.
+    let busy = match event {
+        HookEvent::Prompt => Some(true),
+        HookEvent::SessionStart | HookEvent::Stop | HookEvent::SessionEnd => Some(false),
+        HookEvent::PreEdit | HookEvent::PostTool => None,
+    };
+    session::note_agent(&at, &b.sid(), &input.agent(), input.transcript_path.as_deref(), &input.cwd, busy, now_ms());
     match event {
         HookEvent::SessionStart | HookEvent::Prompt => {
+            crate::listen::ensure(&at);
             // Never start a turn while a push after the last one is still rebasing.
             drain::wait_idle(&at, Duration::from_secs(5));
             let _ = drain::notice_push(&at, &b, now_ms());
@@ -171,7 +182,7 @@ fn news(at: &Checkout, b: &Binding, input: &HookInput, now: Ms) -> Reply {
     let sid = b.sid();
     let Some(since) = session::cursor(at, &sid, &agent) else { return Reply::silent() };
     let Ok(f) = session::load(at, b, now) else { return Reply::silent() };
-    let Some(text) = digest(&f, Some(&since), &agent, now) else { return Reply::silent() };
+    let Some(text) = digest(&f, Some(&since), &agent, &b.login, now) else { return Reply::silent() };
     let term = std::env::var("HC_TERMINAL_ID").ok();
     let (at, heads) = (at.clone(), f.heads.clone());
     Reply {
@@ -239,7 +250,7 @@ fn catch_up(event: HookEvent, at: &Checkout, b: &Binding, agent: &str, fetch: Du
     let Ok(f) = session::load(at, b, now) else { return Reply::silent() };
     let sid = b.sid();
     let since = session::cursor(at, &sid, agent);
-    let mut text = digest(&f, since.as_ref(), agent, now);
+    let mut text = digest(&f, since.as_ref(), agent, &b.login, now);
     if event == HookEvent::SessionStart {
         if let Some(g) = talk::guide(&f, b) {
             text = Some(match text {
@@ -392,7 +403,7 @@ fn registered_command() -> Option<String> {
 }
 
 /// The claude CLI: $HERDR_SESSION_CLAUDE (empty: none), else `claude` on PATH, else ~/.local/bin/claude.
-fn claude_cli() -> Option<PathBuf> {
+pub fn claude_cli() -> Option<PathBuf> {
     if let Some(c) = std::env::var_os("HERDR_SESSION_CLAUDE") {
         return (!c.is_empty()).then(|| PathBuf::from(c));
     }

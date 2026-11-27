@@ -192,24 +192,6 @@ pub fn spawn(at: &Checkout, ledger_only: bool) {
         }
         return;
     }
-    let Ok(exe) = std::env::current_exe() else { return };
-    let log = session::home().join("logs").join("drain.log");
-    let _ = std::fs::create_dir_all(log.parent().unwrap());
-    let out = File::options().create(true).append(true).open(&log).ok();
-    let mut c = std::process::Command::new(exe);
-    c.args(&args).stdin(std::process::Stdio::null());
-    match out.and_then(|o| o.try_clone().ok().map(|e| (o, e))) {
-        Some((o, e)) => {
-            c.stdout(o).stderr(e);
-        }
-        None => {
-            c.stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
-        }
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        c.process_group(0); // not killed with the hook's process group
-    }
-    let _ = c.spawn();
+    crate::util::spawn_detached(&args, &session::home().join("logs").join("drain.log"));
+    crate::listen::ensure(at);
 }

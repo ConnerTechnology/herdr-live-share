@@ -71,6 +71,7 @@ impl Person {
             .env("HOME", &self.home)
             .env("CLAUDE_CONFIG_DIR", self.home.join(".claude"))
             .env("HERDR_SESSION_CLAUDE", "") // no claude CLI: the tools' server is not registered
+            .env("HERDR_SESSION_NO_LISTEN", "1")
             .env("GIT_AUTHOR_NAME", "t")
             .env("GIT_AUTHOR_EMAIL", "t@t")
             .env("GIT_COMMITTER_NAME", "t")

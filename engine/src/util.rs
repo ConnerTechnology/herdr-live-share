@@ -61,3 +61,27 @@ pub fn random32() -> std::io::Result<[u8; 32]> {
     std::fs::File::open("/dev/urandom")?.read_exact(&mut b)?;
     Ok(b)
 }
+
+/// Run this binary with `args`, detached: its own process group, so it
+/// outlives the hook that started it; stdout and stderr appended to `log`.
+pub fn spawn_detached(args: &[String], log: &std::path::Path) {
+    let Ok(exe) = std::env::current_exe() else { return };
+    let _ = std::fs::create_dir_all(log.parent().unwrap_or(std::path::Path::new(".")));
+    let out = std::fs::File::options().create(true).append(true).open(log).ok();
+    let mut c = std::process::Command::new(exe);
+    c.args(args).stdin(std::process::Stdio::null());
+    match out.and_then(|o| o.try_clone().ok().map(|e| (o, e))) {
+        Some((o, e)) => {
+            c.stdout(o).stderr(e);
+        }
+        None => {
+            c.stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+        }
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        c.process_group(0);
+    }
+    let _ = c.spawn();
+}

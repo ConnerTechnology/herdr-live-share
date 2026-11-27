@@ -175,7 +175,9 @@ pub fn start(at: &Checkout, name: &str, now: Ms) -> Result<Summary, ApiError> {
     let _ = crate::claude::install_hooks();
     if session::binding(at).is_some() {
         // Already shared from here: `change` checks ownership and reopens (a no-op when open).
-        return change(at, Change::Sharing(true), now);
+        let reply = change(at, Change::Sharing(true), now);
+        crate::listen::ensure(at);
+        return reply;
     }
     if !matches!(remote_of(at), Remote::Github { .. }) {
         return Err(err("NotGitHub", "Sharing needs the branch on GitHub: this repo's origin is not a GitHub repository."));
@@ -191,6 +193,7 @@ pub fn start(at: &Checkout, name: &str, now: Ms) -> Result<Summary, ApiError> {
         e => e.into(),
     })?;
     let b = session::binding(at).ok_or_else(|| err("Io", "the session was created but not recorded"))?;
+    crate::listen::ensure(at);
     Ok(summary(at, &b, &session::load(at, &b, now)?, true))
 }
 

@@ -93,6 +93,10 @@ fn run(verb: &str, o: &Opts) -> Result<Value, ApiError> {
             let ledger_only = o.0.contains_key("ledger");
             to_json(herdr_session::drain::drain(&at, &b, ledger_only).map_err(ApiError::from)?)
         }
+        "listen" => {
+            let at = o.checkout()?;
+            Ok(json!(herdr_session::listen::run(&at.root, o.0.contains_key("once"))))
+        }
         "sync" | "timeline" | "say" | "doctor" => {
             Err(ApiError { kind: "NotImplemented", message: format!("`{verb}` is not built yet") })
         }

@@ -160,6 +160,16 @@ pub enum Body {
     /// An agent tells the others something (share_post).
     /// `about`, not `kind`: `kind` is the tag that names the event.
     Post { about: PostKind, text: String },
+    /// A question from an agent: to one person's agents, or to everyone (a second opinion).
+    Ask { id: String, to: Option<String>, text: String },
+    /// An answer to an `Ask`. `background`: given by a read-only copy of the
+    /// person's agent while they were away.
+    Answer {
+        question: String,
+        text: String,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        background: bool,
+    },
     /// Never written: a kind from a newer release.
     #[serde(skip)]
     Unknown { kind: String },
@@ -331,6 +341,24 @@ pub struct Task {
     pub done: bool,
 }
 
+/// A question and how many answers it has. Open until its first answer.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Question {
+    pub by: String,
+    pub agent: Option<String>,
+    /// None: a second opinion, for everyone.
+    pub to: Option<String>,
+    pub text: String,
+    pub at: Ms,
+    pub answers: u32,
+}
+
+impl Question {
+    pub fn is_open(&self) -> bool {
+        self.answers == 0
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Editing {
     pub login: String,
@@ -366,6 +394,8 @@ pub struct Fold {
     /// Newest WorkingOn per path, younger than 10 minutes at `now`.
     pub editing: BTreeMap<String, Editing>,
     pub tasks: BTreeMap<String, Task>,
+    /// Every question by id, with its answer count.
+    pub questions: BTreeMap<String, Question>,
     /// Oldest first, in (at, device, seq) order.
     pub items: Vec<Item>,
     pub heads: Heads,
@@ -409,6 +439,8 @@ pub fn fold(sid: &SessionId, streams: &[Verified], now: Ms) -> Option<Fold> {
     members.insert(owner.clone(), Member { joined: genesis.created, last_seen: genesis.created });
     let mut editing: BTreeMap<String, Editing> = BTreeMap::new();
     let mut tasks: BTreeMap<String, Task> = BTreeMap::new();
+    let mut questions: BTreeMap<String, Question> = BTreeMap::new();
+    let mut answered: Vec<String> = Vec::new();
     let mut items = Vec::new();
     let mut pushed_to: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
 
@@ -446,6 +478,10 @@ pub fn fold(sid: &SessionId, streams: &[Verified], now: Ms) -> Option<Fold> {
                     t.done = true;
                 }
             }
+            Body::Ask { id, to, text } => {
+                questions.entry(id.clone()).or_insert(Question { by: e.login.clone(), agent: e.agent.clone(), to: to.clone(), text: text.clone(), at: e.at, answers: 0 });
+            }
+            Body::Answer { question, .. } => answered.push(question.clone()),
             Body::WorkingOn { path } => {
                 editing.insert(path.clone(), Editing { login: e.login.clone(), agent: e.agent.clone(), at: e.at });
             }
@@ -484,8 +520,14 @@ pub fn fold(sid: &SessionId, streams: &[Verified], now: Ms) -> Option<Fold> {
         }
     }
     editing.retain(|_, e| now.saturating_sub(e.at) < EDITING_FRESH);
+    // After the loop: an answer counts even if its author's clock put it before the question.
+    for id in answered {
+        if let Some(q) = questions.get_mut(&id) {
+            q.answers += 1;
+        }
+    }
 
-    Some(Fold { sid: *sid, genesis, settings, status, members, editing, tasks, items, heads, last_activity: last })
+    Some(Fold { sid: *sid, genesis, settings, status, members, editing, tasks, questions, items, heads, last_activity: last })
 }
 
 /// Whether an item is after a cursor.

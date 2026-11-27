@@ -7,11 +7,14 @@ use crate::util::ago;
 pub const CATCH_UP: Ms = 24 * 3_600_000;
 const MAX_CHARS: usize = 1_500;
 const QUOTE_CHARS: usize = 140;
+/// How much of an answer the digest shows.
+const ANSWER_CHARS: usize = 600;
 
 /// What to tell an agent. `since` None: a full catch-up (a new agent).
 /// `me` is the agent's id: its own events are left out; the same person's
-/// other agents are not. None when there is nothing to say.
-pub fn digest(f: &Fold, since: Option<&Heads>, me: &str, now: Ms) -> Option<String> {
+/// other agents are not. `login` is its person: questions to them read "asked
+/// you". None when there is nothing to say.
+pub fn digest(f: &Fold, since: Option<&Heads>, me: &str, login: &str, now: Ms) -> Option<String> {
     let mine = |i: &Item| i.agent.as_deref() == Some(me);
     let picked: Vec<&Item> = f
         .items
@@ -26,7 +29,7 @@ pub fn digest(f: &Fold, since: Option<&Heads>, me: &str, now: Ms) -> Option<Stri
 
     let mut lines: Vec<String> = Vec::new();
     for item in &picked {
-        if let Some(line) = describe(f, item) {
+        if let Some(line) = describe(f, item, login) {
             lines.push(line);
         }
     }
@@ -105,7 +108,7 @@ fn quote_up_to(s: &str, max: usize) -> String {
     format!("\"{}{}\"", cut.replace('"', "'"), more)
 }
 
-fn describe(f: &Fold, item: &Item) -> Option<String> {
+fn describe(f: &Fold, item: &Item, login: &str) -> Option<String> {
     let task = |id: &str| f.tasks.get(id).map(|t| quote(&t.title)).unwrap_or_else(|| id.to_string());
     let who = item.login.as_deref().unwrap_or("someone");
     let agent = if item.agent.is_some() { format!("{who}'s agent") } else { who.to_string() };
@@ -142,6 +145,24 @@ fn describe(f: &Fold, item: &Item) -> Option<String> {
             Body::Handoff { to, text } => format!("- {agent} handed off{}: {}", to.as_ref().map(|t| format!(" to {t}")).unwrap_or_default(), quote(text)),
             Body::Post { about: PostKind::Working, text } => format!("- {agent} (working on): {}", quote_up_to(text, crate::talk::MAX_POST)),
             Body::Post { about: PostKind::Finding, text } => format!("- {agent} (finding): {}", quote_up_to(text, crate::talk::MAX_POST)),
+            Body::Ask { id, to: Some(to), text } if to == login => {
+                format!("- {agent} asked you (question {id}): {}. Answer it with share_answer.", quote_up_to(text, crate::talk::MAX_POST))
+            }
+            Body::Ask { id, to: Some(to), text } => format!("- {agent} asked {to} (question {id}): {}", quote_up_to(text, crate::talk::MAX_POST)),
+            Body::Ask { id, to: None, text } => format!(
+                "- {agent} wants a second opinion (question {id}): {}. Any agent may answer with share_answer.",
+                quote_up_to(text, crate::talk::MAX_POST)
+            ),
+            Body::Answer { question, text, background } => {
+                let said = quote_up_to(text, ANSWER_CHARS);
+                let away = if *background { " (in the background)" } else { "" };
+                match f.questions.get(question) {
+                    Some(q) if *background && who == login => format!("- While you were away, you answered {}'s question {}: {said}", q.by, quote(&q.text)),
+                    Some(q) if q.by == login => format!("- {agent} answered your question {}{away}: {said}", quote(&q.text)),
+                    Some(q) => format!("- {agent} answered {}'s question {}{away}: {said}", q.by, quote(&q.text)),
+                    None => format!("- {agent} answered a question{away}: {said}"),
+                }
+            }
             Body::WorkingOn { .. } | Body::Unknown { .. } => return None,
         },
     })

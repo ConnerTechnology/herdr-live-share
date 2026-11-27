@@ -45,6 +45,7 @@ impl Person {
         let mut child = Command::new(env!("CARGO_BIN_EXE_herdr-session"))
             .args(["hook", event])
             .env("HERDR_SESSION_HOME", &self.home)
+            .env("HERDR_SESSION_NO_LISTEN", "1")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()

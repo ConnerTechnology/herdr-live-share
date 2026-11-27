@@ -266,9 +266,13 @@ pub struct Cursor {
     pub term: Option<String>,
 }
 
-fn cursor_path(at: &Checkout, sid: &SessionId, agent: &str) -> PathBuf {
+fn file_name(agent: &str) -> String {
     let safe: String = agent.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' }).collect();
-    state_dir(at).join(sid.code()).join("cursors").join(format!("{safe}.json"))
+    format!("{safe}.json")
+}
+
+fn cursor_path(at: &Checkout, sid: &SessionId, agent: &str) -> PathBuf {
+    state_dir(at).join(sid.code()).join("cursors").join(file_name(agent))
 }
 
 /// None: this agent has never caught up (a new agent gets the full digest).
@@ -280,4 +284,64 @@ pub fn cursor(at: &Checkout, sid: &SessionId, agent: &str) -> Option<Heads> {
 pub fn set_cursor(at: &Checkout, sid: &SessionId, agent: &str, heads: &Heads, term: Option<&str>) -> std::io::Result<()> {
     let c = Cursor { heads: heads.iter().map(|(t, s)| (t.0.clone(), *s)).collect(), term: term.map(str::to_string) };
     write_atomic(&cursor_path(at, sid, agent), &serde_json::to_vec(&c).unwrap())
+}
+
+/// One Claude agent in a checkout of the session, as its hooks last saw it:
+/// what the listener needs to know whether it is mid-turn, and to fork its
+/// conversation for a background answer (SPEC 9.1).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct AgentNote {
+    pub agent: String,
+    #[serde(default)]
+    pub transcript: Option<PathBuf>,
+    pub cwd: PathBuf,
+    /// Last time a hook saw it.
+    pub at: Ms,
+    /// Between a prompt and the end of that turn.
+    #[serde(default)]
+    pub busy: bool,
+}
+
+/// A turn counts as running for at most this long without a hook (a crash leaves no Stop).
+pub const BUSY_FOR: Ms = 30 * 60_000;
+
+impl AgentNote {
+    pub fn is_busy(&self, now: Ms) -> bool {
+        self.busy && now.saturating_sub(self.at) < BUSY_FOR
+    }
+    /// The Claude conversation id, for `claude --resume`.
+    pub fn session_id(&self) -> Option<&str> {
+        self.agent.strip_prefix("claude:")
+    }
+}
+
+fn note_path(at: &Checkout, sid: &SessionId, agent: &str) -> PathBuf {
+    state_dir(at).join(sid.code()).join("agents").join(file_name(agent))
+}
+
+/// Record what a hook saw. `busy` None keeps the agent's turn state.
+pub fn note_agent(at: &Checkout, sid: &SessionId, agent: &str, transcript: Option<&Path>, cwd: &Path, busy: Option<bool>, now: Ms) {
+    let path = note_path(at, sid, agent);
+    let old: Option<AgentNote> = std::fs::read(&path).ok().and_then(|b| serde_json::from_slice(&b).ok());
+    let note = AgentNote {
+        agent: agent.to_string(),
+        transcript: transcript.map(Path::to_path_buf).or_else(|| old.as_ref().and_then(|o| o.transcript.clone())),
+        cwd: cwd.to_path_buf(),
+        at: now,
+        busy: busy.unwrap_or_else(|| old.is_some_and(|o| o.busy)),
+    };
+    let _ = write_atomic(&path, &serde_json::to_vec(&note).unwrap());
+}
+
+/// Every agent seen in this clone for the session, most recently seen first.
+pub fn agents(at: &Checkout, sid: &SessionId) -> Vec<AgentNote> {
+    let dir = state_dir(at).join(sid.code()).join("agents");
+    let mut all: Vec<AgentNote> = std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|e| serde_json::from_slice(&std::fs::read(e.path()).ok()?).ok())
+        .collect();
+    all.sort_by_key(|n| std::cmp::Reverse(n.at));
+    all
 }

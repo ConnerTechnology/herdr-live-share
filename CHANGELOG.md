@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+- **Agents ask each other.** **share_ask** asks one person's agent a question, and **share_post** with kind "opinion" asks everyone for a second opinion. Answers reach the asking agent between its tool calls. If the person you ask is away, a read-only copy of their agent answers in the background. It can only read the shared folder and reply; it can't edit anything. Each person gets at most 20 background answers a day. When you come back, your agent tells you what it answered for you.
+
 ## 0.1.18 (2026-11-26)
 
 - **Agents talk to each other.** In a shared space, Claude agents get two tools, **share_post** and **share_read**. They use them to tell the others what they're about to change, or something useful they found. News now reaches an agent between its tool calls too, not only when you send a prompt. The tools install with the hooks and never ask for permission.

@@ -31,10 +31,27 @@ case "$*" in
 esac
 "#;
 
-/// `claude mcp add|remove --scope user herdr-live-share …`, recorded in this person's own config.
+/// `claude mcp add|remove --scope user herdr-live-share …`, recorded in this
+/// person's own config; and `claude -p …` (a background answer), which records
+/// its arguments, folder and environment in claude-p.log, then answers the
+/// question its prompt names through the real tools, as the fork would.
+/// $FAKE_CLAUDE_SILENT: it runs but never answers.
 const FAKE_CLAUDE: &str = r#"#!/bin/sh
 dir="${CLAUDE_CONFIG_DIR:-$HOME}"
 mkdir -p "$dir"
+if [ "$1" = "-p" ]; then
+  for a; do last="$a"; done
+  { printf 'args:'; for a; do [ "$a" = "$last" ] || printf ' %s' "$a"; done; echo
+    echo "cwd: $(pwd)"
+    echo "background: ${HERDR_SESSION_BACKGROUND:-no}"
+    echo "prompt: $last"; } >> "$dir/claude-p.log"
+  [ -n "$FAKE_CLAUDE_SILENT" ] && exit 0
+  id=$(printf '%s' "$last" | grep -o 'question "q[a-z0-9]*"' | head -n 1 | cut -d'"' -f2)
+  printf '%s\n' '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' \
+    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"share_answer\",\"arguments\":{\"question\":\"$id\",\"text\":\"Collaborators are cached for 10 minutes in github.rs.\"}}}" \
+    | CLAUDE_CODE_SESSION_ID=fork-1 HERDR_SESSION_DRAIN_INLINE=1 "$HERDR_TEST_ENGINE" mcp >> "$dir/claude-p.log"
+  exit 0
+fi
 echo "$*" >> "$dir/claude-calls.log"
 case "$1 $2" in
   "mcp add") shift 6; printf '{"mcpServers":{"herdr-live-share":{"type":"stdio","command":"%s","args":["mcp"]}}}\n' "$1" > "$dir/.claude.json" ;;
@@ -94,8 +111,10 @@ impl Person<'_> {
             .env("PATH", path)
             .env("HOME", &self.home)
             .env("HERDR_SESSION_HOME", self.home.join(".herdr/session"))
+            .env("HERDR_SESSION_NO_LISTEN", "1")
             .env("CLAUDE_CONFIG_DIR", self.home.join(".claude"))
             .env("HERDR_SESSION_CLAUDE", self.world.bin.join("claude"))
+            .env("HERDR_TEST_ENGINE", env!("CARGO_BIN_EXE_herdr-session"))
             .env("GIT_CONFIG_GLOBAL", &self.world.gitconfig)
             .env("FAKE_GH_LOGIN", &self.login)
             .env("FAKE_GH_ACCESS", "write")
@@ -117,6 +136,7 @@ impl Person<'_> {
             .env("PATH", path)
             .env("HOME", &self.home)
             .env("HERDR_SESSION_HOME", self.home.join(".herdr/session"))
+            .env("HERDR_SESSION_NO_LISTEN", "1")
             .env("CLAUDE_CONFIG_DIR", self.home.join(".claude"))
             .env("GIT_CONFIG_GLOBAL", &self.world.gitconfig)
             .env("FAKE_GH_LOGIN", &self.login)
@@ -143,6 +163,7 @@ impl Person<'_> {
             .current_dir(dir)
             .env("HOME", &self.home)
             .env("HERDR_SESSION_HOME", self.home.join(".herdr/session"))
+            .env("HERDR_SESSION_NO_LISTEN", "1")
             .env("CLAUDE_CONFIG_DIR", self.home.join(".claude"))
             .env("CLAUDE_CODE_SESSION_ID", session)
             .env("GIT_CONFIG_GLOBAL", &self.world.gitconfig)
