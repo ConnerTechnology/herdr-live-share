@@ -7,6 +7,8 @@ pub mod git;
 pub mod github;
 pub mod join;
 pub mod ledger;
+pub mod mcp;
 pub mod session;
+pub mod talk;
 pub mod util;
 pub mod view;

@@ -79,6 +79,12 @@ install_engine() {
       || run "$cargo" install --quiet --path "$tmp/src/engine" --root "$HOME/.local"
   fi
   [ $dry = 1 ] || say "Engine: $("$BIN_DIR/herdr-session" version) on $(hostname)"
+  # Someone shared or joined here before: bring their Claude hooks and the
+  # agents' tools up to this engine (a no-op when nothing changed).
+  settings="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+  if [ -f "$settings" ] && grep -q 'herdr-session hook ' "$settings"; then
+    run "$BIN_DIR/herdr-session" hooks >/dev/null || say "Could not update the Claude hooks on $(hostname)."
+  fi
 }
 
 install_mods() {

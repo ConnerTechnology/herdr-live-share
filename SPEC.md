@@ -489,7 +489,7 @@ To tell the others: herdr-session say task|done|decision|chat "<one line>"
 | `share_answer` | `question` (id, or the question's text), `text` | Appends `Answer{question, background: false}`; a text that is not an id is matched to the open question it quotes, else to the only open question for this person |
 | `share_read` | none | What is new since this agent's cursor, including answers to its questions |
 
-**Ledger events.** New kinds `Post{kind, text}`, `Ask{id, to: Option<login>, text}` (`to: None` is a second opinion) and `Answer{question, text, background}`. They replace the unused `Question`; `Chat`, `Handoff` and `Decision` stay for the v2 Inbox. Older engines fold them as `Unknown`. A question is open until its first answer; later answers still show. Limits per person: 30 posts and 10 questions an hour (the tool says why when it refuses).
+**Ledger events.** New kinds `Post{about: working | finding, text}` (`about`, because `kind` is the tag that names every event), `Ask{id, to: Option<login>, text}` (`to: None` is a second opinion) and `Answer{question, text, background}`. They replace the unused `Question`; `Chat`, `Handoff` and `Decision` stay for the v2 Inbox. Older engines fold them as `Unknown`. A question is open until its first answer; later answers still show. Limits per person: 30 posts and 10 questions an hour (the tool says why when it refuses).
 
 **Telling the agent how.** The `SessionStart` digest ends with a short guide: who is in the session, the four kinds of post with one example each, "post only what another agent would act on", "never paste your person's prompt or code", and "answer questions with share_answer".
 
@@ -500,7 +500,7 @@ To tell the others: herdr-session say task|done|decision|chat "<one line>"
 | Before a prompt | `UserPromptSubmit` (as today) | as today | Posts, questions, answers since the cursor; questions for this person first; "While you were away you answered: …" |
 | Between tool calls | `PostToolUse` on every tool (new) | local only, < 50 ms | Anything new since the cursor, as `additionalContext`; questions for this person say "answer with share_answer" |
 
-`PostToolUse` reads only local state, so the news is as fresh as the last fetch: the listener's, every 30 s.
+`PostToolUse` reads only local state, so the news is as fresh as the last fetch: the listener's, every 30 s. Until the listener exists, the hook itself starts a background fetch at most every 15 s per checkout, so news can arrive one tool call late. In the digest a post reads `- ryan's agent (working on): "…"` or `(finding)`: agents write their own sentences, so the kind is a label, not a verb.
 
 **The listener.** `herdr-session listen` runs detached, one per clone (flock `<common>/herdr-session/listen.lock`; a second one exits at once). It starts silently from `SessionStart`, `start`, `join` and `drain`, fetches the session refs every 30 s, and exits when the session closes or after 24 h with no new event in it. Each pass: fetch; fold; refresh idle badges; start background answers. It does no other work and sleeps between passes. Accepted limit: after a reboot it runs again once any Claude starts in a shared checkout on that machine, or a share dialog opens.
 
@@ -676,4 +676,4 @@ Still unverified: `watchFolder` outside a repo, `ssh-keygen -Y sign` with an age
 4. **Done (unreleased):** `join --step session|github|access|folder|branch` (`engine/tests/join.rs`), `hooks install|uninstall` (run by `start` and `join`), and `share-join`, checked in the sandbox. Left: the Claude hooks end to end with two real agents (pre-edit, stop, end, drain).
 5. `timeline_for` and `share-activity` (kept window).
 6. Open the chrome PR with Can (6.2, 6.3) with screenshots from steps 3 to 5 as evidence.
-7. **Agents talk (2.6, 9.1),** in this order: the spike; `share_post`, `share_read` and news between tool calls; then `share_ask`, `share_answer`, the listener and background answers; then a test with two real agents in which one asks the other while its person is away.
+7. **Agents talk (2.6, 9.1),** in this order: the spike (done); `share_post`, `share_read` and news between tool calls (done, unreleased: `engine/tests/talk.rs`, plus a real Claude run that heard a post mid-turn and posted itself); then `share_ask`, `share_answer`, the listener and background answers; then a test with two real agents in which one asks the other while its person is away.

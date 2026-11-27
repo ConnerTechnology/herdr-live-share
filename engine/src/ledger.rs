@@ -112,6 +112,16 @@ pub enum SettingsPatch {
     WhoCanJoin { who: WhoCanJoin },
 }
 
+/// What an agent's post is about (SPEC 2.6).
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum PostKind {
+    /// What it is about to change, so others don't overlap.
+    Working,
+    /// Something it learned that another agent would act on.
+    Finding,
+}
+
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct CommitLine {
     pub oid: String,
@@ -147,6 +157,9 @@ pub enum Body {
     Question { to: Option<String>, text: String },
     Handoff { to: Option<String>, text: String },
     Decision { text: String },
+    /// An agent tells the others something (share_post).
+    /// `about`, not `kind`: `kind` is the tag that names the event.
+    Post { about: PostKind, text: String },
     /// Never written: a kind from a newer release.
     #[serde(skip)]
     Unknown { kind: String },

@@ -1,6 +1,6 @@
 //! Pure views over a Fold: the digest an agent reads, and the unread count.
 
-use crate::ledger::{is_new, Body, Fold, Heads, Item, ItemKind, Ms, SettingsPatch, Status, WhoCanJoin};
+use crate::ledger::{is_new, Body, Fold, Heads, Item, ItemKind, Ms, PostKind, SettingsPatch, Status, WhoCanJoin};
 use crate::util::ago;
 
 /// A full catch-up covers this much history.
@@ -94,9 +94,14 @@ fn newest_seen(f: &Fold, h: &Heads) -> Ms {
 
 /// Teammate text as data: one line, trimmed, in quotes.
 pub fn quote(s: &str) -> String {
+    quote_up_to(s, QUOTE_CHARS)
+}
+
+/// The same, for text that may be longer (an agent's post).
+fn quote_up_to(s: &str, max: usize) -> String {
     let one: String = s.split_whitespace().collect::<Vec<_>>().join(" ");
-    let cut: String = one.chars().take(QUOTE_CHARS).collect();
-    let more = if one.chars().count() > QUOTE_CHARS { "…" } else { "" };
+    let cut: String = one.chars().take(max).collect();
+    let more = if one.chars().count() > max { "…" } else { "" };
     format!("\"{}{}\"", cut.replace('"', "'"), more)
 }
 
@@ -135,6 +140,8 @@ fn describe(f: &Fold, item: &Item) -> Option<String> {
             Body::Decision { text } => format!("- {agent} decided: {}", quote(text)),
             Body::Question { to, text } => format!("- {agent} asked{}: {}", to.as_ref().map(|t| format!(" {t}")).unwrap_or_default(), quote(text)),
             Body::Handoff { to, text } => format!("- {agent} handed off{}: {}", to.as_ref().map(|t| format!(" to {t}")).unwrap_or_default(), quote(text)),
+            Body::Post { about: PostKind::Working, text } => format!("- {agent} (working on): {}", quote_up_to(text, crate::talk::MAX_POST)),
+            Body::Post { about: PostKind::Finding, text } => format!("- {agent} (finding): {}", quote_up_to(text, crate::talk::MAX_POST)),
             Body::WorkingOn { .. } | Body::Unknown { .. } => return None,
         },
     })

@@ -31,6 +31,17 @@ case "$*" in
 esac
 "#;
 
+/// `claude mcp add|remove --scope user herdr-live-share …`, recorded in this person's own config.
+const FAKE_CLAUDE: &str = r#"#!/bin/sh
+dir="${CLAUDE_CONFIG_DIR:-$HOME}"
+mkdir -p "$dir"
+echo "$*" >> "$dir/claude-calls.log"
+case "$1 $2" in
+  "mcp add") shift 6; printf '{"mcpServers":{"herdr-live-share":{"type":"stdio","command":"%s","args":["mcp"]}}}\n' "$1" > "$dir/.claude.json" ;;
+  "mcp remove") printf '{"mcpServers":{}}\n' > "$dir/.claude.json" ;;
+esac
+"#;
+
 pub struct World {
     _tmp: tempfile::TempDir,
     pub root: PathBuf,
@@ -49,10 +60,13 @@ impl World {
         let bin = root.join("bin");
         std::fs::create_dir(&bin).unwrap();
         std::fs::write(bin.join("gh"), FAKE_GH).unwrap();
+        std::fs::write(bin.join("claude"), FAKE_CLAUDE).unwrap();
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(bin.join("gh"), std::fs::Permissions::from_mode(0o755)).unwrap();
+            for tool in ["gh", "claude"] {
+                std::fs::set_permissions(bin.join(tool), std::fs::Permissions::from_mode(0o755)).unwrap();
+            }
         }
         let gitconfig = root.join("gitconfig");
         std::fs::write(&gitconfig, format!("[url \"file://{}\"]\n\tinsteadOf = {URL}\n[protocol \"file\"]\n\tallow = always\n[uploadpack]\n\tallowFilter = true\n", remote.display())).unwrap();
@@ -81,6 +95,7 @@ impl Person<'_> {
             .env("HOME", &self.home)
             .env("HERDR_SESSION_HOME", self.home.join(".herdr/session"))
             .env("CLAUDE_CONFIG_DIR", self.home.join(".claude"))
+            .env("HERDR_SESSION_CLAUDE", self.world.bin.join("claude"))
             .env("GIT_CONFIG_GLOBAL", &self.world.gitconfig)
             .env("FAKE_GH_LOGIN", &self.login)
             .env("FAKE_GH_ACCESS", "write")
@@ -116,6 +131,44 @@ impl Person<'_> {
         let out = child.wait_with_output().unwrap();
         assert!(out.status.success(), "hooks never fail Claude");
         String::from_utf8_lossy(&out.stdout).into_owned()
+    }
+
+    /// Talk to `herdr-session mcp` as Claude does, from `dir` in conversation
+    /// `session`: initialize, then each tool call. Returns each call's
+    /// (text, is_error). Background pushes run inline.
+    pub fn mcp(&self, dir: &Path, session: &str, calls: &[(&str, Value)]) -> Vec<(String, bool)> {
+        use std::io::Write;
+        let mut child = Command::new(env!("CARGO_BIN_EXE_herdr-session"))
+            .arg("mcp")
+            .current_dir(dir)
+            .env("HOME", &self.home)
+            .env("HERDR_SESSION_HOME", self.home.join(".herdr/session"))
+            .env("CLAUDE_CONFIG_DIR", self.home.join(".claude"))
+            .env("CLAUDE_CODE_SESSION_ID", session)
+            .env("GIT_CONFIG_GLOBAL", &self.world.gitconfig)
+            .env("HERDR_SESSION_DRAIN_INLINE", "1")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        let mut stdin = child.stdin.take().unwrap();
+        let mut send = |v: Value| writeln!(stdin, "{v}").unwrap();
+        send(serde_json::json!({ "jsonrpc": "2.0", "id": 0, "method": "initialize", "params": { "protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": { "name": "test", "version": "0" } } }));
+        send(serde_json::json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }));
+        for (i, (name, args)) in calls.iter().enumerate() {
+            send(serde_json::json!({ "jsonrpc": "2.0", "id": i + 1, "method": "tools/call", "params": { "name": name, "arguments": args } }));
+        }
+        drop(send);
+        drop(stdin);
+        let out = child.wait_with_output().unwrap();
+        assert!(out.status.success());
+        let replies: Vec<Value> = String::from_utf8_lossy(&out.stdout).lines().map(|l| serde_json::from_str(l).unwrap()).collect();
+        assert_eq!(replies.len(), calls.len() + 1, "one reply per request, none for the notification");
+        assert_eq!(replies[0]["result"]["serverInfo"]["name"], "herdr-live-share");
+        replies[1..]
+            .iter()
+            .map(|r| (r["result"]["content"][0]["text"].as_str().unwrap_or_default().to_string(), r["result"]["isError"].as_bool().unwrap_or(false)))
+            .collect()
     }
 
     /// The text Claude is given (additionalContext), or "" when the hook was silent.

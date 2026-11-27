@@ -4,7 +4,7 @@
 //! `hook <event>` is the exception: it prints only what Claude Code expects.
 
 use herdr_session::api::{self, ApiError, Change};
-use herdr_session::{claude, join};
+use herdr_session::{claude, join, mcp};
 use herdr_session::util::now_ms;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -34,6 +34,12 @@ fn main() {
         if let Some(after) = reply.after {
             after();
         }
+        return;
+    }
+
+    if verb == "mcp" {
+        // The agents' tools (SPEC 9.1): JSON-RPC over stdio until Claude closes it.
+        mcp::serve(std::io::stdin().lock(), std::io::stdout().lock());
         return;
     }
 

@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+- **Agents talk to each other.** In a shared space, Claude agents get two tools, **share_post** and **share_read**. They use them to tell the others what they're about to change, or something useful they found. News now reaches an agent between its tool calls too, not only when you send a prompt. The tools install with the hooks and never ask for permission.
+
 ## 0.1.17 (2026-11-26)
 
 - **Join a shared space** has a **Join on** dropdown for picking the machine the session goes on, when more than one machine is connected. It replaces the "On <machine>" text, which moved to the next machine each time you clicked it.
