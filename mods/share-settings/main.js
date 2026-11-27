@@ -280,11 +280,11 @@ export default class ShareSettings extends View {
         .when(Boolean(this.engineNote), (el) => el.child(div().text_size(12).text_color(t.dim).child(this.engineNote))))
       .child(
         h_flex().items_center().gap(12).pt(16).border_t_1().border_color(t.border)
-          .child(h_flex().flex_1().gap(6).items_center().text_size(12)
+          .child(h_flex().flex_1().min_w(0).gap(6).items_center().text_size(12)
             .when(Boolean(this.update), (el) => el.child(div().w(6).h(6).rounded(3).bg(t.accent)))
             .when(Boolean(this.updateNote), (el) => el
-              .child(div().text_color(t.muted).child(`herdr live share ${VERSION} · ${this.updateNote}`))
-              .child(div().id("updates").cursor_pointer().on_click(() => this.openUpdates()).underline().font_semibold()
+              .child(div().min_w(0).whitespace_nowrap().overflow_hidden().text_ellipsis().text_color(t.muted).child(`herdr live share ${VERSION} · ${this.updateNote}`))
+              .child(div().id("updates").flex_none().whitespace_nowrap().cursor_pointer().on_click(() => this.openUpdates()).underline().font_semibold()
                 .text_color(this.update ? t.accent : t.foreground).hover((st) => st.opacity(0.8))
                 .child(this.update ? "See update" : "Check for updates"))))
           .when(Boolean(this.fix) && this.busy !== "install", (el) => el.child(

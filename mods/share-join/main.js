@@ -5,14 +5,25 @@
 // re-checking the ones before, so Try again and a reopened dialog are safe.
 // The last step makes the worktree; the space is added to the sidebar without
 // showing it or opening Claude.
-import { View, div } from "gpui-kit";
-import { v_flex, h_flex, InputState, Input } from "gpui-base";
+import { View, div, svg } from "gpui-kit";
+import { v_flex, h_flex, InputState, Input, Popover } from "gpui-base";
 import { props, closeOverlay, theme, checking, run, spaces, panes, machines, shared, setShared } from "herdr";
 import { engine, installEngine, newer, shownSpace, machineName, VERSION } from "./engine.js";
 
 const STEPS = ["session", "github", "access", "folder", "branch"];
 const LONG = 600_000; // the first checkout can take minutes
 const DEFAULT_FOLDER = "~/herdr-sessions";
+
+/** herdr's own icons, shipped with its workspace-chrome mod. */
+const ICON = (name) => `mods/workspace-chrome/${name}.svg`;
+
+/** A machine's name as a menu item: "This computer", or its name. */
+const placeLabel = (on) => on ?? "This computer";
+
+/** Where a join can go: this computer, then every connected machine. */
+function places() {
+  return [null, ...machines().filter((m) => m.layout !== "unavailable" && m.name !== null).map((m) => m.name)];
+}
 
 /** Which row an engine error belongs to (step 1 also reports 2 and 3: GitHub hides private repos). */
 const ROW = { BadLink: 0, SessionNotFound: 0, Closed: 0, Network: 0, NotSignedIn: 1, GhMissing: 1, NoAccess: 2, NotInvited: 2, FolderUnusable: 3, BranchGone: 4 };
@@ -40,6 +51,7 @@ export default class ShareJoin extends View {
     this.engineNote = null;
     this.fix = null;
     this.busy = false;
+    this.machineOpen = false;
     const start = props()?.link ?? shared("share.joinLink") ?? "";
     this.link = InputState.new({ value: start, placeholder: "herdr.dev/join/owner/repo/code" });
     this.link.on("submit", (_e, cx) => this.join(cx));
@@ -87,13 +99,17 @@ export default class ShareJoin extends View {
     });
   }
 
-  /** More than one machine connected: the join can go to another one (O13). */
-  nextMachine(cx) {
-    const names = machines().filter((m) => m.layout !== "unavailable").map((m) => m.name);
-    if (names.length < 2) return;
-    this.on = names[(names.indexOf(this.on) + 1) % names.length];
-    this.folder = InputState.new({ value: this.savedFolder() ?? DEFAULT_FOLDER });
-    cx.spawn(async (cx) => this.checkEngine(cx));
+  /** The machine the join goes to (O13); its own saved folder and engine come with it. */
+  chooseMachine(cx, on) {
+    this.machineOpen = false;
+    if (on !== this.on) {
+      this.on = on;
+      this.folder.set_value(this.savedFolder() ?? DEFAULT_FOLDER);
+      this.engineNote = null;
+      this.fix = null;
+      cx.spawn(async (cx) => this.checkEngine(cx));
+    }
+    cx.notify();
   }
 
   join(cx) {
@@ -175,10 +191,26 @@ export default class ShareJoin extends View {
         .child(Input.new(state).h(38).px(12).rounded(8).border_1().border_color(bad ? red : t.border).bg(t.background)
           .font_family("JetBrains Mono").text_size(13).text_color(t.foreground));
 
-    const machineRow = machines().filter((m) => m.layout !== "unavailable").length > 1
-      ? h_flex().id("machine").gap(6).items_center().text_size(12).text_color(t.muted).cursor_pointer()
-        .on_click((_e, cx) => this.nextMachine(cx))
-        .child(`On ${machineName(this.on)}`).child(div().text_color(t.dim).child("▾"))
+    // A labelled dropdown, drawn like the Who can join menu, when there is more than one place.
+    const options = places();
+    const placeIcon = (on) => svg(ICON(on === null ? "monitor" : "server")).size(14).flex_none().text_color(t.muted);
+    const machineRow = options.length > 1
+      ? v_flex().gap(6)
+        .child(div().text_size(11).font_semibold().text_color(t.dim).child("JOIN ON"))
+        .child(Popover.new("machine-menu").anchor("top_left")
+          .open(this.machineOpen && !this.busy)
+          .on_open_change((open, cx) => { this.machineOpen = open; cx.notify(); })
+          .trigger(h_flex().id("machine").w_full().h(38).px(12).gap(8).items_center().rounded(8).border_1().border_color(t.border)
+            .bg(this.machineOpen ? t.hover : t.background).cursor_pointer().hover((st) => st.bg(t.hover))
+            .child(placeIcon(this.on))
+            .child(div().flex_1().min_w(0).whitespace_nowrap().overflow_hidden().text_ellipsis().text_size(13).text_color(t.foreground).child(placeLabel(this.on)))
+            .child(svg(ICON("chevron-down")).size(14).flex_none().text_color(t.muted)))
+          .content(v_flex().id("machine-list").w(512).mt(6).p(5).rounded(10).border_1().border_color(t.border).bg(t.popover).shadow_lg()
+            .children(options.map((on) => h_flex().id(`machine-${on ?? "here"}`).h(32).px(8).gap(9).rounded(7).items_center().cursor_pointer()
+              .hover((st) => st.bg(t.hover)).on_click((_e, cx) => this.chooseMachine(cx, on))
+              .child(placeIcon(on))
+              .child(div().flex_1().min_w(0).whitespace_nowrap().overflow_hidden().text_ellipsis().text_size(13).text_color(t.foreground).child(placeLabel(on)))
+              .child(div().w(14).flex_none().when(on === this.on, (el) => el.child(svg(ICON("check")).size(14).text_color(t.accent))))))))
       : null;
     const engineRow = this.engineNote
       ? h_flex().gap(12).items_center()
@@ -210,7 +242,7 @@ export default class ShareJoin extends View {
     const ready = this.link.value().trim().length > 0 && !this.engineNote;
     return v_flex().gap(20)
       .child(div().self_center().text_size(17).font_semibold().text_color(t.foreground).child("Join a shared space"))
-      .child(v_flex().gap(8).child(field("SHARE LINK", this.link, false)).when(Boolean(machineRow), (el) => el.child(machineRow)))
+      .child(v_flex().gap(16).child(field("SHARE LINK", this.link, false)).when(Boolean(machineRow), (el) => el.child(machineRow)))
       .when(Boolean(engineRow), (el) => el.child(engineRow))
       .child(h_flex().items_center().justify_between()
         .child(cancel)

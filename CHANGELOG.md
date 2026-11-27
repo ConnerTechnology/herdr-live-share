@@ -4,6 +4,9 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+- **Join a shared space** has a **Join on** dropdown for picking the machine the session goes on, when more than one machine is connected. It replaces the "On <machine>" text, which moved to the next machine each time you clicked it.
+- Space settings: when an **Update on <machine>** button shows, the footer no longer pushes **Close** out of the dialog.
+
 ## 0.1.16 (2026-11-26)
 
 - The **Who can join** menu no longer has an **Anyone with repo access** row. Leave everyone unticked to let anyone with repo access join, as the button says.
