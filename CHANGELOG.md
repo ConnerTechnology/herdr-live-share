@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+## 0.1.14 (2026-11-26)
+
 - Space settings switches slide to their new position as soon as you click them and pulse until the change is done. Extra clicks while a change is running are ignored, and a switch slides back if the change fails.
 
 ## 0.1.13 (2026-11-26)
@@ -30,20 +32,6 @@ What changed in the most recent releases, for the people who install them. `scri
 - Each checkout signs with its own key. Two checkouts of one session on the same machine no longer compete for the same event stream.
 - **The Live Share panel** replaces Space settings and Live share updates. Its **Share** tab holds the space name and every sharing setting. Its **Updates** tab holds the version and one update button. It follows the space you're looking at. Until herdr-app lets mods add a button next to Files and Changes, open it with **Live Share** in the command palette; it opens where you last left it. Otherwise the command palette is only for **Join a space**. Space settings, Live share updates and the Activity placeholder are removed on update.
 - **Updates** has one button. **Update to …** updates the mods and the engine on every connected machine. When the mods are current but an engine is behind or missing, the button reads **Update engines** and updates them all. The dialog no longer lists machines.
-
-## 0.1.9 (2026-11-26)
-
-- **Join a space** is real. Paste a share link and five steps run one by one:
-  1. Find the session on GitHub.
-  2. Check your GitHub sign-in.
-  3. Check your access to the repository and Who can join.
-  4. Create your worktree in `~/herdr-sessions/<repo>/<branch>`.
-  5. Check out the branch.
-
-  Each failure says why and offers its fix: edit the link, sign in to GitHub, change the folder, or try again. The space then appears in the sidebar without opening a tab.
-- With more than one machine connected, **On <machine>** picks where the joined copy goes.
-- Sharing and joining set up the Claude hooks in `~/.claude/settings.json` on their own. Your other hooks and settings are kept. `herdr-session hooks uninstall` removes exactly ours.
-- People with read-only access can join and follow along. They publish nothing.
 
 ## Older releases
 

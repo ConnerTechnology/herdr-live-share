@@ -1,6 +1,6 @@
 [package]
 name = "herdr-session"
-version = "0.1.13"
+version = "0.1.14"
 edition = "2021"
 description = "Engine for herdr live share: the session ledger, sync, and Claude hooks"
 license = "MIT"
