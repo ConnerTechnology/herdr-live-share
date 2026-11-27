@@ -2,7 +2,7 @@
 
 Status: draft, written from the Paper file "herdr · live share" and the design conversation, plus an architecture arena (two candidates, one synthesized here). Nothing in this document has been built or run. Items marked **Unverified** were not checked against running software.
 
-Scope: **v1 only.** v2 (Inbox) and v3 (encryption) are listed under [Roadmap](#roadmap); their Paper screens are on the pages "v2 · Inbox" and "v3 · Encryption".
+Scope: **v1 only.** v2 (Inbox) and v3 (encryption) are listed under [Roadmap](#roadmap); their Paper screens are on the pages "Later · v2 Inbox" and "Later · v3 Encryption". The Paper page "0 · Flow map" maps every v1 flow to its screens.
 
 ## 1. What this is
 
@@ -35,7 +35,7 @@ Example used throughout: Thomas shares the space "Google Search" (repo `joindele
 - **Pushes are what others see.** Once the session is shared, every push to the shared branch becomes a `Pushed` event in the ledger: the Activity panel shows it, and every connected agent gets it in its next digest ("thomas pushed 2 commits: …"). Work that is not pushed is simply not visible yet, the same as plain git.
 - **Which pushes become events.** Pushes made by herdr after an agent turn (`drain`) append `Pushed` directly. Pushes made any other way (a terminal, an IDE) are found by `sync`: when the shared branch on the remote has moved past what this device last saw, the engine that made those commits appends `Pushed { from, to, commits }`. `fold` keeps one item per `to`, so two devices noticing the same push show it once. (Built in step 4 with the hooks.)
 - **The one requirement: the branch is on GitHub.** People who join check out the branch from GitHub. If it has never been pushed, the toggle stays off and Space settings says, under the toggle: "google-search isn't on GitHub yet. Push it, then turn sharing on." The origin must be a GitHub repository ("Sharing needs the branch on GitHub").
-- Paper: "Share 0 · Space settings, never shared" and "Share 0 · Branch not on GitHub".
+- Paper: page "1 · Share & settings", "Share 0 · Space settings, never shared" and "Share 2 · Branch not on GitHub".
 
 ### 2.3 Joining
 
@@ -103,7 +103,7 @@ Each person talks to their own agent. The agents in a shared space also talk to 
 - **If a machine is asleep or offline**, its questions wait. The asking agent carries on and gets the answer when it arrives.
 - **Cost.** A background answer is a short `claude -p` run on the answering person's Claude plan. Answers are brief, and each person answers at most 20 questions a day in the background; after that, questions wait for their agent's next turn.
 
-Paper: page "Agents talk".
+Paper: page "4 · Agents talk & Activity".
 
 ## 3. Architecture
 
@@ -274,7 +274,7 @@ The Paper screens assume chrome the default layout does not have: an Activity bu
 
 **Decision (Thomas): v1 ships with two palette entries only: "Live Share: Share this space" and "Live Share: Join a shared space". The + button is unchanged. The target for later is a "Share this space" row in the space right-click menu, between Rename and Close.**
 
-**Decision (Thomas, 2026-11-27): no herdr-app changes.** A Live Share side panel next to Files and Changes (Paper: page "Live Share panel") would need herdr-app to let mods add a panel button and a panel to its shipped layout. We keep the dialogs instead: Space settings and Join a space from the palette, and Live share updates from the dialogs' footer link (and the palette). 0.1.10 shipped the panel as a floating window; the next release returns to the dialogs and removes `share-panel`.
+**Decision (Thomas, 2026-11-27): no herdr-app changes.** A Live Share side panel next to Files and Changes (Paper: page "Not built · needs herdr-app changes") would need herdr-app to let mods add a panel button and a panel to its shipped layout. We keep the dialogs instead: Space settings and Join a space from the palette, and Live share updates from the dialogs' footer link (and the palette). 0.1.10 shipped the panel as a floating window; the next release returns to the dialogs and removes `share-panel`.
 
 ### 6.1 v1 without any shipped-mod change (works today)
 
@@ -630,7 +630,7 @@ Decisions for you:
 - **O9. Turn summaries from transcripts.** The first line of the last assistant message may include things not meant for teammates. Opt-out per space, or commit subjects only in v1?
 - **O10. Automatic rebase and push.** Resolved in part: Keep in sync is per person and can be turned off (2.1). Still open: with it on, the rebase uses `--autostash` even while the person edits the same checkout by hand.
 - **O11. Engine distribution. Resolved for v1:** one installer, `install.sh` (`curl … | sh`), run on the herdr-app computer, installs the mods there and the engine on every connected machine through `hc exec --on`. Run on a remote machine, it installs the engine and points to the app computer. Agents use it through `RECIPE.md` (the gallery's "add this mod" line). Binaries come from GitHub releases built by `.github/workflows/release.yml`, with a source build as the fallback. Dialogs offer "Install on <machine>" when the engine is missing. Shipping it with herdr-core stays a later option for Can.
-- **O13. Join machine. Resolved (Thomas, 2026-11-26): the default.** The shown space's machine, with a **Join on** dropdown in the join dialog when more than one machine is connected (Paper: "Join 2 · Enter the link"). Original question: The join dialog gains "On <machine>" when more than one machine is connected (not in the Paper screens). Default: the shown space's machine. OK, or always this computer?
+- **O13. Join machine. Resolved (Thomas, 2026-11-26): the default.** The shown space's machine, with a **Join on** dropdown in the join dialog when more than one machine is connected (Paper: "Join 1 · Paste the link, pick the machine"). Original question: The join dialog gains "On <machine>" when more than one machine is connected (not in the Paper screens). Default: the shown space's machine. OK, or always this computer?
 - **O12. "Does NOT open a tab".** A herdr space always has at least one tab (spike). v1 default: the joined space is created with `focus:false` and one plain shell tab; it is not shown and Claude is not started. Literal zero tabs needs a core change (`space.ensure`), not planned.
 
 Risks: hook latency on every Claude turn on the machine (shared or not), measured before shipping; `share.unread` is only fresh while the Activity window is alive; a separate blobless clone per joined repo instead of finding the user's existing clone; five copies of `engine.js`.
@@ -671,7 +671,7 @@ Still unverified: `watchFolder` outside a repo, `ssh-keygen -Y sign` with an age
 
 - **v1:** this document.
 - **v2 · Inbox:** a second tab in the Activity panel. Six item types (question and handoff from people; conflict, branch rewritten, can't sync, closing soon from herdr). "Mark handled" is private and removes an item from your Inbox only. Answers and declines come back as replies in the sender's Inbox; a handoff stays with the sender until taken. Screens: Paper page "v2 · Inbox".
-- **v3 · Encryption:** make Who can join a real lock. Options: per-person keys (and what deselecting can and cannot undo), or a private companion repo. Note: Paper page "v3 · Encryption".
+- **v3 · Encryption:** make Who can join a real lock. Options: per-person keys (and what deselecting can and cannot undo), or a private companion repo. Note: Paper page "Later · v3 Encryption".
 
 ## Implementation order
 

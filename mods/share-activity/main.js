@@ -1,5 +1,6 @@
 // Activity: the shown space's shared session as a timeline, newest first.
-// Paper: page "Agents talk", artboard "Agents talk · Activity shows the conversation".
+// Paper: page "4 · Agents talk & Activity", artboards "Agents talk 1 · Activity shows the
+// conversation" and "Activity · Empty, error and offline states".
 //
 // The engine's `timeline` does the work (engine/src/activity.rs); this window
 // only lays it out. It reads local state every 5 s and fetches from GitHub

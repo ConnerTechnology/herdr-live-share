@@ -1,6 +1,5 @@
 // Space settings: share the shown space, and its session's settings.
-// Paper: "Share 0 · Space settings, never shared", "Share 0 · Branch not on
-// GitHub", "Space settings · sharing on / off / choosing who can join".
+// Paper: page "1 · Share & settings", artboards "Share 0" to "Share 8".
 //
 // The Who can join menu is a Popover anchored to its dropdown. The session is
 // kept in shared("share.spaces")[spaceId], which every engine reply updates.

@@ -1,5 +1,5 @@
-// Join a space. Paper: "Join 2 · Enter the share link", "Join 3 · Ryan opens
-// the link", "Join 3 · Step N fails", "Join 4 · Joined", "Join errors · each step".
+// Join a space. Paper: page "2 · Join", artboards "Join 1" to "Join 5", each
+// "Join error · Step N", and "Join errors · All of them".
 //
 // Paste a link, then five engine steps run one by one (`join --step …`), each
 // re-checking the ones before, so Try again and a reopened dialog are safe.
