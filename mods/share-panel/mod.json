@@ -1,0 +1,3 @@
+{ "place": "none", "title": "Live Share",
+  "overlay": { "kind": "window", "key": "share-panel", "keep": true, "width": 368, "height": 0.85 },
+  "palette": [{ "title": "Live Share", "command": "mod.open", "args": { "name": "share-panel" }, "group": "Share", "words": "live share panel share this space settings updates" }] }

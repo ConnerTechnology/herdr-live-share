@@ -120,6 +120,8 @@ fn ensure_clone(gh: &GitHubRepo) -> Result<Repo, ApiError> {
     repo.run(&["config", &format!("remote.{REMOTE}.fetch"), "+refs/heads/*:refs/remotes/origin/*"])?;
     repo.run(&["config", &format!("remote.{REMOTE}.promisor"), "true"])?;
     repo.run(&["config", &format!("remote.{REMOTE}.partialclonefilter"), "blob:none"])?;
+    // Git's record of pushes (how a push from a terminal is noticed); bare clones keep none by default.
+    repo.run(&["config", "core.logAllRefUpdates", "true"])?;
     Ok(repo)
 }
 
@@ -255,7 +257,7 @@ fn check_out(repo: &Repo, fold: &Fold, login: &str, permission: &str, path: &Pat
             }
             repo.run_with(&args, None, Some(CLONE)).map_err(|e| err("FolderUnusable", format!("Couldn't create {}. It may already exist, or herdr can't write there. ({e})", tilde(path))))?;
             let at = Checkout::discover(path).ok_or_else(|| err("Io", "the worktree was made but git can't see it"))?;
-            session::bind(&at, &Binding { sid: sid.hex(), remote: REMOTE.into(), login: login.into(), keep_in_sync: true })
+            session::bind(&at, &Binding { sid: sid.hex(), remote: REMOTE.into(), login: login.into(), keep_in_sync: true, read_only: permission != "write" })
                 .map_err(|e| err("Io", e.to_string()))?;
             at
         }
@@ -263,7 +265,7 @@ fn check_out(repo: &Repo, fold: &Fold, login: &str, permission: &str, path: &Pat
     // Read-only people publish nothing (O2). Everyone else says "joined" once per device.
     if permission == "write" {
         let b = session::binding(&at).ok_or_else(|| err("Io", "the binding is missing"))?;
-        let key = session::device_key().map_err(|e| err("Io", e.to_string()))?;
+        let key = session::device_key(&at).map_err(|e| err("Io", e.to_string()))?;
         let mine = session::own_ref(&sid, &key.tag(&sid));
         let said = at.repo().ref_oid(&mine).is_some() || at.repo().ref_oid(&mine.replace("refs/herdr/s/", "refs/herdr-seen/")).is_some();
         if !said {

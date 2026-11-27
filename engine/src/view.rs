@@ -126,7 +126,7 @@ fn describe(f: &Fold, item: &Item) -> Option<String> {
                 format!("- {agent} pushed {n} commit{}: {}{more}", if n == 1 { "" } else { "s" }, subjects.join("; "))
             }
             Body::BranchRewritten { .. } => format!("- {who} rewrote the shared branch (force-push). Run git pull --rebase."),
-            Body::Conflict { files } => format!("- {agent} hit a rebase conflict in {}", files.join(", ")),
+            Body::Conflict { files } => format!("- {agent} hit a rebase conflict in {}; nothing was pushed. Pull with rebase and resolve it.", files.join(", ")),
             Body::TaskCreated { title, .. } => format!("- {agent} added a task: {}", quote(title)),
             Body::TaskClaimed { id } => format!("- {agent} took the task {}", task(id)),
             Body::TaskDone { id } => format!("- {agent} finished the task {}", task(id)),

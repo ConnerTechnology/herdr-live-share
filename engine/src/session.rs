@@ -19,9 +19,11 @@ pub fn home() -> PathBuf {
     }
 }
 
-/// This machine's key, made on first use.
-pub fn device_key() -> std::io::Result<DeviceKey> {
-    let path = home().join("device.ed25519");
+/// This clone's key, made on first use. One key per clone, not per machine:
+/// each clone writes only its own stream, so two checkouts of one session on
+/// one machine (the owner's folder and a joined worktree) never race for a ref.
+pub fn device_key(at: &Checkout) -> std::io::Result<DeviceKey> {
+    let path = state_dir(at).join("device.ed25519");
     if let Ok(text) = std::fs::read_to_string(&path) {
         if let Some(seed) = unhex(text.trim()).and_then(|b| <[u8; 32]>::try_from(b).ok()) {
             return Ok(DeviceKey::from_seed(seed));
@@ -57,6 +59,10 @@ pub struct Binding {
     /// turn. Lives here, on this person's machine, not in the session.
     #[serde(default = "on")]
     pub keep_in_sync: bool,
+    /// Joined with read access only: GitHub won't take our pushes, so this
+    /// device publishes nothing (O2).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub read_only: bool,
 }
 
 fn on() -> bool {
@@ -139,12 +145,12 @@ pub fn open(at: &Checkout, remote: &str, login: &str, settings: Settings, now: M
         settings,
     };
     let sid = genesis.session_id();
-    let key = device_key()?;
+    let key = device_key(at)?;
     let event = Event { sid: sid.hex(), seq: 0, at: now, login: login.to_string(), agent: None, body: Body::Opened { genesis } };
     let name = own_ref(&sid, &key.tag(&sid));
     repo.append(&name, None, &key.sign(&event))?;
     repo.push(remote, &format!("{name}:{name}"), Duration::from_secs(30))?;
-    bind(at, &Binding { sid: sid.hex(), remote: remote.to_string(), login: login.to_string(), keep_in_sync: true })?;
+    bind(at, &Binding { sid: sid.hex(), remote: remote.to_string(), login: login.to_string(), keep_in_sync: true, read_only: false })?;
     Ok(sid)
 }
 
@@ -153,7 +159,7 @@ pub fn open(at: &Checkout, remote: &str, login: &str, settings: Settings, now: M
 pub fn append(at: &Checkout, b: &Binding, body: Body, agent: Option<&str>, now: Ms) -> Result<(), Error> {
     let repo = at.repo();
     let sid = b.sid();
-    let key = device_key()?;
+    let key = device_key(at)?;
     let name = own_ref(&sid, &key.tag(&sid));
     for _ in 0..5 {
         let old = repo.ref_oid(&name);
@@ -214,7 +220,7 @@ pub fn sync(at: &Checkout, b: &Binding, timeout: Duration) -> NetStatus {
     let mut net = net_status(at, &sid);
     let result = (|| -> Result<(), Error> {
         repo.fetch(&b.remote, &seen_refspec(&sid), timeout)?;
-        let key = device_key()?;
+        let key = device_key(at)?;
         let name = own_ref(&sid, &key.tag(&sid));
         if let Some(ours) = repo.ref_oid(&name) {
             let seen = repo.ref_oid(&name.replace("refs/herdr/s/", "refs/herdr-seen/"));

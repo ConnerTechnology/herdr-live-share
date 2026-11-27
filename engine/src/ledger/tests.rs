@@ -307,3 +307,15 @@ proptest! {
         prop_assert_eq!(fold(&sid, &streams, now), fold(&sid, &streams, now));
     }
 }
+
+#[test]
+fn a_push_noticed_by_two_devices_shows_once() {
+    let (mut thomas, mut ryan) = pair(false);
+    let push = |to: &str| Body::Pushed { commits: vec![CommitLine { oid: to.into(), subject: "Add a README".into() }], summary: "Add a README".into(), to: Some(to.into()) };
+    ryan.say(T0 + 2 * H, push("abc"));
+    thomas.say(T0 + 2 * H + 1, push("abc"));
+    thomas.say(T0 + 3 * H, push("def"));
+    let f = fold(&thomas.sid, &[thomas.stream(), ryan.stream()], T0 + 4 * H).unwrap();
+    let pushes: Vec<_> = f.items.iter().filter(|i| matches!(i.kind, ItemKind::Authored(Body::Pushed { .. }))).map(|i| i.login.clone().unwrap()).collect();
+    assert_eq!(pushes, vec!["ryan".to_string(), "thomas".to_string()], "one per tip, the first to say it");
+}

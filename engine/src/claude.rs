@@ -3,8 +3,9 @@
 //! UserPromptSubmit and PreToolUse, so every reply is silent or context.
 //! A hook never fails Claude: whatever happens, it prints valid output or nothing.
 
+use crate::drain;
 use crate::git::Checkout;
-use crate::ledger::Ms;
+use crate::ledger::{Body, Ms};
 use crate::session::{self, Binding};
 use crate::util::{ago, now_ms};
 use crate::view::digest;
@@ -50,6 +51,15 @@ impl HookEvent {
 pub struct HookInput {
     pub session_id: String,
     pub cwd: PathBuf,
+    /// PreToolUse: the edit's arguments (`file_path`, or `notebook_path`).
+    #[serde(default)]
+    pub tool_input: serde_json::Value,
+    /// Stop: the conversation so far, one JSON object per line.
+    #[serde(default)]
+    pub transcript_path: Option<PathBuf>,
+    /// Stop, in Claude Code releases that send it.
+    #[serde(default)]
+    pub last_assistant_message: Option<String>,
 }
 
 impl HookInput {
@@ -79,12 +89,109 @@ pub fn hook(event: HookEvent, stdin: &str) -> Reply {
     let Some(b) = session::binding(&at) else { return Reply::silent() }; // not a shared checkout: silent, fast
     match event {
         HookEvent::SessionStart | HookEvent::Prompt => {
+            // Never start a turn while a push after the last one is still rebasing.
+            drain::wait_idle(&at, Duration::from_secs(5));
+            let _ = drain::notice_push(&at, &b, now_ms());
             let fetch = if event == HookEvent::SessionStart { Duration::from_secs(5) } else { Duration::from_secs(3) };
             catch_up(event, &at, &b, &input.agent(), fetch, now_ms())
         }
-        // Later steps: heads-up before edits, turn summaries and push, badge clear.
-        HookEvent::PreEdit | HookEvent::Stop | HookEvent::SessionEnd => Reply::silent(),
+        HookEvent::PreEdit => pre_edit(&at, &b, &input, now_ms()),
+        HookEvent::Stop => {
+            stop(&at, &b, &input, now_ms());
+            Reply::silent()
+        }
+        // The Activity badge is cleared here once Activity exists (step 5).
+        HookEvent::SessionEnd => Reply::silent(),
     }
+}
+
+/// Before an edit: a heads-up when someone else's agent is on the same file,
+/// and "working on" for everyone else (once per file per 10 minutes). Local
+/// except for a detached ledger push.
+fn pre_edit(at: &Checkout, b: &Binding, input: &HookInput, now: Ms) -> Reply {
+    let Some(file) = input.tool_input.get("file_path").or_else(|| input.tool_input.get("notebook_path")).and_then(|p| p.as_str()) else {
+        return Reply::silent();
+    };
+    let file = PathBuf::from(file);
+    let abs = if file.is_absolute() { file } else { input.cwd.join(file) };
+    let root = at.root.canonicalize().unwrap_or_else(|_| at.root.clone());
+    let abs = abs.parent().and_then(|d| d.canonicalize().ok()).map(|d| d.join(abs.file_name().unwrap_or_default())).unwrap_or(abs);
+    let Ok(rel) = abs.strip_prefix(&root) else { return Reply::silent() }; // outside the shared checkout
+    let path = rel.to_string_lossy().replace('\\', "/");
+    fresh_enough(at, b, now);
+    let Ok(f) = session::load(at, b, now) else { return Reply::silent() };
+    let agent = input.agent();
+    let current = f.editing.get(&path);
+    let mine = current.is_some_and(|e| e.agent.as_deref() == Some(agent.as_str()));
+    if !mine && !b.read_only && f.is_open() && session::append(at, b, Body::WorkingOn { path: path.clone() }, Some(&agent), now).is_ok() {
+        drain::spawn(at, true);
+    }
+    match current {
+        Some(e) if e.agent.as_deref() != Some(agent.as_str()) => {
+            let who = if e.login == b.login { "Another of your agents".to_string() } else { format!("{}'s agent", e.login) };
+            let text = format!(
+                "Heads-up from the shared session: {who} is working on {path} ({}). Their changes arrive when they push; keep your edit small or coordinate.",
+                ago(now.saturating_sub(e.at))
+            );
+            Reply {
+                out: Some(serde_json::json!({ "hookSpecificOutput": { "hookEventName": "PreToolUse", "additionalContext": text } }).to_string()),
+                after: None,
+            }
+        }
+        _ => Reply::silent(),
+    }
+}
+
+/// Others' "working on" must be current for a heads-up to mean anything: fetch
+/// the session's events (small refs only) at most every 10 s per checkout, for
+/// at most 2 s. Offline, the heads-up uses what this machine has.
+fn fresh_enough(at: &Checkout, b: &Binding, now: Ms) {
+    let stamp = at.common_dir.join("herdr-session").join(b.sid().code()).join("pre-edit-fetch");
+    let last: Ms = std::fs::read_to_string(&stamp).ok().and_then(|s| s.trim().parse().ok()).unwrap_or(0);
+    if now.saturating_sub(last) < 10_000 {
+        return;
+    }
+    let _ = session::write_atomic(&stamp, now.to_string().as_bytes());
+    let _ = at.repo().fetch(&b.remote, &session::seen_refspec(&b.sid()), Duration::from_secs(2));
+}
+
+/// After a turn: its first line goes to the others, then push (detached).
+fn stop(at: &Checkout, b: &Binding, input: &HookInput, now: Ms) {
+    if b.read_only {
+        return;
+    }
+    let open = session::load(at, b, now).is_ok_and(|f| f.is_open());
+    if open {
+        let text = input.last_assistant_message.clone().or_else(|| input.transcript_path.as_deref().and_then(last_reply));
+        if let Some(line) = text.as_deref().and_then(first_line) {
+            let _ = session::append(at, b, Body::TurnSummary { text: line }, Some(&input.agent()), now);
+        }
+    }
+    // Closed sessions publish nothing, but code pushes stay ordinary git.
+    drain::spawn(at, !open);
+}
+
+/// The text of the last assistant message in a Claude transcript.
+fn last_reply(path: &std::path::Path) -> Option<String> {
+    let text = std::fs::read_to_string(path).ok()?;
+    text.lines().rev().find_map(|l| {
+        let v: serde_json::Value = serde_json::from_str(l).ok()?;
+        if v.get("type")?.as_str()? != "assistant" {
+            return None;
+        }
+        let said: Vec<&str> = v.pointer("/message/content")?.as_array()?.iter()
+            .filter(|c| c.get("type").and_then(|t| t.as_str()) == Some("text"))
+            .filter_map(|c| c.get("text")?.as_str())
+            .collect();
+        let s = said.join("\n");
+        (!s.trim().is_empty()).then_some(s)
+    })
+}
+
+/// The first line worth reading, without markdown marks, at most 140 characters.
+fn first_line(text: &str) -> Option<String> {
+    let line = text.lines().map(|l| l.trim().trim_start_matches(['#', '*', '-', '>', ' ']).trim_end_matches('*').trim()).find(|l| !l.is_empty())?;
+    Some(if line.chars().count() > 140 { format!("{}…", line.chars().take(139).collect::<String>().trim_end()) } else { line.to_string() })
 }
 
 /// Sync, then tell the agent what is new since its cursor (everything recent

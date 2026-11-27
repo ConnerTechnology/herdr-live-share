@@ -129,7 +129,13 @@ pub enum Body {
     Reopened,
     SettingsChanged { patch: SettingsPatch },
     Joined,
-    Pushed { commits: Vec<CommitLine>, summary: String },
+    Pushed {
+        commits: Vec<CommitLine>,
+        summary: String,
+        /// The branch tip after the push. Two devices may notice the same push; it shows once.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        to: Option<String>,
+    },
     BranchRewritten { from: String, to: String },
     Conflict { files: Vec<String> },
     TaskCreated { id: String, title: String },
@@ -391,6 +397,7 @@ pub fn fold(sid: &SessionId, streams: &[Verified], now: Ms) -> Option<Fold> {
     let mut editing: BTreeMap<String, Editing> = BTreeMap::new();
     let mut tasks: BTreeMap<String, Task> = BTreeMap::new();
     let mut items = Vec::new();
+    let mut pushed_to: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
 
     for (tag, s) in all {
         let e = &s.event;
@@ -437,7 +444,8 @@ pub fn fold(sid: &SessionId, streams: &[Verified], now: Ms) -> Option<Fold> {
         if matches!(status, Status::Open { .. }) {
             last = last.max(e.at);
         }
-        if !matches!(e.body, Body::Unknown { .. }) {
+        let repeat_push = matches!(&e.body, Body::Pushed { to: Some(to), .. } if !pushed_to.insert(to.clone()));
+        if !matches!(e.body, Body::Unknown { .. }) && !repeat_push {
             items.push(Item {
                 at: e.at,
                 pos: Some((tag.clone(), e.seq)),

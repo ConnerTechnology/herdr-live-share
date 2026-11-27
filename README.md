@@ -7,7 +7,7 @@ Status: scaffold. The design is in [SPEC.md](SPEC.md).
 ## Layout
 
 - `engine/`: `herdr-session`, a Rust command-line tool that owns all session state. Mods and Claude Code hooks call it.
-- `mods/`: four herdr-app mods (`share-settings`, `share-join`, `share-activity`, `share-updates`). Each `engine.js` copy must stay identical.
+- `mods/`: two herdr-app mods (`share-panel`, the Live Share panel, and `share-join`). Each `engine.js` copy must stay identical.
 - `scripts/install`: links the mods into `~/.config/herdr-app/mods/` and builds the engine into `~/.local/bin`.
 - `scripts/check`: runs `herdr-app check` on each mod, compares the `engine.js` copies, and runs `cargo test`.
 
@@ -32,7 +32,7 @@ herdr-app often runs on one computer and shows spaces from others (`hc machine l
 
 A machine added later gets the engine from the share dialogs, which offer **Install on <machine>** when it's missing. The engine comes from the latest GitHub release. With no release binary for a machine, it's built from source, which needs Rust there.
 
-Then open the command palette in herdr-app and run **Share this space** or **Join a space**.
+Then open the command palette in herdr-app and run **Live Share** to share the shown space, or **Join a space** to join one.
 
 ## Develop
 

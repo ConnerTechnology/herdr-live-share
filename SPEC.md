@@ -247,31 +247,30 @@ export default class Activity extends View {
 
 The Paper screens assume chrome the default layout does not have: an Activity button in the tab bar, a "Share this space" entry in the space right-click menu, an Activity side panel docked in the window. Today the space right-click menu is a fixed list in the shipped `menu` mod (`defaults/mods/menu/main.js`, case `"space"`: Rename, New/Open/Remove worktree for git folders, Close). The + button runs `space.new` directly. There is no space-settings dialog.
 
-**Decision (Thomas): v1 ships with two palette entries only: "Share this space" and "Join a space". The + button is unchanged. The target for later is a "Share this space" row in the space right-click menu, between Rename and Close.**
+**Decision (Thomas, 2026-11-26): the Live Share panel replaces Space settings and Live share updates.** It is a panel for the shown space, opened by a **Live Share** button next to Files and Changes, with **Share** and **Updates** tabs (Paper: page "Live Share panel"). It follows the shown space. The command palette is only for **Join a space**. herdr-app has no way for a mod to add a tab-bar button or a panel next to Files and Changes (both are in the shipped, read-only `tabs` mod and `main` layout), so until 6.2 lands the panel is a kept `window` overlay (`share-panel`) opened by one temporary palette entry, **Live Share**, which goes away when the button ships. The + button is unchanged.
 
 ### 6.1 v1 without any shipped-mod change (works today)
 
 | Screen or entry | Mod | Mechanism |
 |---|---|---|
-| Space menu row "Share this space…" | `share-settings` | Not possible without 6.2: the space menu is a fixed list. Until Can merges it, the palette entry "Share this space…" opens the same dialog for the active space |
-| Space settings (toggle, name, auto-close, Who can join, link) | `share-settings` | Modal dialog for the clicked space (props `{space}`), opened from the menu row or the palette |
-| Who can join menu | `share-settings` | Popup overlay of the same mod |
+| Live Share button next to Files and Changes | `share-panel` | Not possible without 6.2. Until then the temporary palette entry "Live Share" opens the panel |
+| Live Share panel: Share tab (name, toggle, Keep in sync, auto-close, Who can join, link) and Updates tab | `share-panel` | Kept `window` overlay (key `share-panel`, remembers where it was dropped) that follows the shown space |
+| Who can join menu | `share-panel` | Popup overlay of the same mod |
 | Join entry | `share-join` | Palette "Join a space"; terminal link handler for `herdr.dev/join/` |
 | Join dialog, five checks, Done | `share-join` | Modal dialog, second state |
-| Activity panel | `share-activity` | Kept `window` overlay opened from the palette |
-| Activity button + unread | (none) | Palette entry and an optional `keys.json` binding |
+| Activity | (later) | A third panel tab (step 5) |
 | Idle Claude-tab badge | engine writes label | Shown as "Claude · tab 2 · 3 waiting" in the Activity window header |
 | Catch-up digest, heads-up | engine `hook` | Claude hooks |
 
 ### 6.2 The ask: one generic contribution point
 
-**The space menu row is the main ask and the first change to land.** In `menu/main.js` the `"space"` case would append rows from `chrome["space-menu"]` after Rename, each as `[title, "mod.open", {name: open, props: {space: tg.id}}]`. The `new-menu` and tab-bar entries are secondary and optional (v1 works without them). Three **shipped JS mods** (`tabs`, `menu`, `new-menu`) read a `chrome` field from other mods' `mod.json`, the way `frame/palette/main.js:82-111` reads `palette`. No Rust change.
+**The main ask is now a panel button: mods add a button next to Files and Changes that shows their mod in the `panel-body` stack, the way Files and Changes do** (`tabs/main.js` hard-codes `panelButton("files")` and `panelButton("changes")`; `main.json`'s `panel-body` stack has only those two children). The space menu row below is secondary. In `menu/main.js` the `"space"` case would append rows from `chrome["space-menu"]` after Rename, each as `[title, "mod.open", {name: open, props: {space: tg.id}}]`. The `new-menu` and tab-bar entries are secondary and optional (v1 works without them). Three **shipped JS mods** (`tabs`, `menu`, `new-menu`) read a `chrome` field from other mods' `mod.json`, the way `frame/palette/main.js:82-111` reads `palette`. No Rust change.
 
 ```json
 "chrome": {
   "space-menu": [{ "title": "Share this space…", "icon": "mods/share-settings/share.svg", "open": "share-settings", "after": "space.rename" }],
   "new-menu":   [{ "title": "Join a shared space…", "icon": "mods/share-join/join.svg", "open": "share-join", "after": "space" }],
-  "tab-bar":    [{ "id": "activity", "title": "Activity", "icon": "mods/share-activity/activity.svg", "open": "share-activity", "badge": "share.unread" }]
+  "panel":      [{ "id": "live-share", "title": "Live Share", "icon": "mods/share-panel/live.svg", "mod": "share-panel", "after": "changes" }]
 }
 ```
 
@@ -583,7 +582,7 @@ Still unverified: `watchFolder` outside a repo, `ssh-keygen -Y sign` with an age
 - **Releasing.** `scripts/release <x.y.z>` sets the version in `engine/Cargo.toml` and in every mod's `engine.js` (`VERSION`), runs `scripts/check` (which fails if they disagree), commits, tags `v<x.y.z>` and pushes. Release notes: `CHANGELOG.md`'s Unreleased section becomes the version's section and the GitHub release notes; the file keeps the last 5 releases, and its footer says how to fetch every release's notes from GitHub. The tag runs `.github/workflows/release.yml`: engine binaries for Linux and macOS (x86_64, arm64) on a GitHub release.
 - **Installing and updating are the same command.** `install.sh` always takes the latest release for both the mods and the engine.
 - **Updates wait for a click (Thomas).** When a share dialog opens, it asks GitHub for the latest release, at most once per 10 minutes (cached in `shared("share.latest")` for all share mods; herdr-app's `fetch` with a `User-Agent` and an 8 s cap, then `curl`). Every share dialog ends with one line: "herdr live share 0.1.4 · Up to date  **Check for updates**", or, with a violet dot, "herdr live share 0.1.4 · Version 0.1.5 is available  **See update**". The line sits in the footer row, left of Close; only the underlined link is clickable, and it closes the share dialog and opens Live share updates. Checking and installing happen only there. The share dialogs keep only **Install on …** / **Update on …** for the space's own machine, since they cannot work without its engine. Paper: "Updates · Share dialog, check for updates" and "…, update available".
-- **Live share updates** (`share-updates`, palette): laid out like Herdr's Settings → Updates. Row 1: `herdr live share <version>`, its status line, **What's new** (opens the release notes on GitHub) and **Check now**, or **Update to …** when one exists. Below, one row per connected machine with its engine version and **Install on …** / **Update on …** when needed. Paper: page "Session start & join", artboards "Updates · Live share updates, up to date" and "…, update available". Per-machine buttons are outlined; only Update to … is violet.
+- **Live share updates** (`share-updates`, palette): laid out like Herdr's Settings → Updates. Row 1: `herdr live share <version>`, its status line, **What's new** (opens the release notes on GitHub) and **Check now**, or **Update to …** when one exists. Nothing below the buttons: no rows per machine. **One button updates everything (Thomas, 2026-11-26):** Update to … installs the mods here and the engine on every connected machine; when the mods are current but an engine is missing or behind (a machine that was offline), the same button reads **Update engines** and brings every such machine up to the mods at once. Paper: page "Session start & join", artboards "Updates · Live share updates, up to date" and "…, update available"; page "Live Share panel", "Panel 3 · Updates tab".
 - **A machine that missed an update.** If the engine on the space's machine is older than the mods (it was offline during the update), the dialog shows **Update on <machine>**, which installs the matching engine there. A missing engine shows **Install on <machine>**.
 - **Claude hooks need nothing.** They call `~/.local/bin/herdr-session` by absolute path, and the installer replaces the binary with an atomic rename, so the next hook runs the new version and a running hook finishes on the old one.
 - **Mixed versions in one session are normal** (Thomas on 0.3, Ryan on 0.2 for a week). Rules: a release may add ledger event types and fields, never change or remove one; an older engine's `fold` skips event types it does not know and shows nothing for them. The mods-to-engine envelope `api` changes only for a breaking protocol change; on a mismatch the dialog offers the update and does nothing else.

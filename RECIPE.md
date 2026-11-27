@@ -6,7 +6,7 @@ For the agent that was asked to "add this mod: https://github.com/ConnerTechnolo
 
 herdr live share has two parts, and they often belong on different computers:
 
-- **Four mods** (`share-settings`, `share-join`, `share-activity`, `share-updates`). They go into `~/.config/herdr-app/mods/` on **the computer running herdr-app**, the one the person sits at.
+- **Two mods** (`share-panel`, the Live Share panel, and `share-join`). They go into `~/.config/herdr-app/mods/` on **the computer running herdr-app**, the one the person sits at.
 - **The engine** (`herdr-session`, one binary). It goes into `~/.local/bin` on **every machine whose spaces are shared**: the machines that hold the repos, run git and run Claude. That is often a remote machine shown in the sidebar under its own name, not "This computer".
 
 Both are installed by one script, `install.sh`. It works out which computer it runs on and does the right part.
@@ -23,7 +23,7 @@ Both are installed by one script, `install.sh`. It works out which computer it r
    curl -fsSL https://raw.githubusercontent.com/ConnerTechnology/herdr-live-share/main/install.sh | sh
    ```
 
-   It installs the engine here, copies the four mods into `~/.config/herdr-app/mods/`, then installs the engine on every connected machine in `hc machine ls` through `hc exec --on <machine>`. A machine that fails is named in the output with the command to run there. Go to step 4.
+   It installs the engine here, copies the two mods into `~/.config/herdr-app/mods/`, then installs the engine on every connected machine in `hc machine ls` through `hc exec --on <machine>`. A machine that fails is named in the output with the command to run there. Go to step 4.
 
 3. **On a remote machine**, the herdr-app computer can't be reached from here. Run the same command:
 
@@ -45,6 +45,6 @@ Both are installed by one script, `install.sh`. It works out which computer it r
 
 ## Done when
 
-- `herdr-app check` passes for all four mods on the herdr-app computer.
+- `herdr-app check` passes for both mods on the herdr-app computer.
 - `herdr-session version` prints `"ok":true` on every machine with spaces to share.
-- The command palette in herdr-app lists **Share this space**, **Join a space** and **Live share updates**.
+- The command palette in herdr-app lists **Live Share** and **Join a space**.

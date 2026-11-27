@@ -90,7 +90,7 @@ fn two_people_one_session() {
     // Ryan clones and joins (the core of `join`: bind, append Joined, sync).
     let ryan = Person { home: root.join("ryan-home"), clone: root.join("ryan") };
     git(root, &["clone", "-q", "-b", "google-search", &url, "ryan"]);
-    let ryan_binding = Binding { sid: sid.hex(), remote: "origin".into(), login: "ryan".into(), keep_in_sync: true };
+    let ryan_binding = Binding { sid: sid.hex(), remote: "origin".into(), login: "ryan".into(), keep_in_sync: true, read_only: false };
     ryan.as_me(|at| {
         session::bind(at, &ryan_binding).unwrap();
         session::sync(at, &ryan_binding, Duration::from_secs(10));
@@ -106,7 +106,7 @@ fn two_people_one_session() {
             CommitLine { oid: "a1".into(), subject: "Add recency boost to query builder".into() },
             CommitLine { oid: "b2".into(), subject: "Test recency boost".into() },
         ];
-        session::append(at, b, Body::Pushed { commits, summary: String::new() }, Some("claude:t1"), now_ms()).unwrap();
+        session::append(at, b, Body::Pushed { commits, summary: String::new(), to: None }, Some("claude:t1"), now_ms()).unwrap();
         session::append(at, b, Body::WorkingOn { path: "query_builder.py".into() }, Some("claude:t1"), now_ms()).unwrap();
         session::append(at, b, Body::TaskCreated { id: "t1".into(), title: "recency boost and tests".into() }, None, now_ms()).unwrap();
         assert!(session::sync(at, b, Duration::from_secs(10)).last_error.is_none());

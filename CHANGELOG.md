@@ -4,6 +4,15 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+- Agents in a shared space now hear each other:
+  - **Before Claude edits a file**, the others' agents see "<person>'s agent is working on <file>". If someone else is already on that file, your agent gets a heads-up first.
+  - **At the end of each turn**, the first line of Claude's reply goes to the others.
+  - **After each turn**, with **Keep in sync** on, new commits are pushed: pull with rebase, then push. On a conflict the rebase is undone, nothing is pushed, and your agent hears about it on its next turn. herdr never commits for you.
+  - **Pushes made from a terminal or an IDE** are noticed and shown to the others once.
+- Each checkout signs with its own key. Two checkouts of one session on the same machine no longer compete for the same event stream.
+- **The Live Share panel** replaces Space settings and Live share updates. Its **Share** tab holds the space name and every sharing setting. Its **Updates** tab holds the version and one update button. It follows the space you're looking at. Until herdr-app lets mods add a button next to Files and Changes, open it with **Live Share** in the command palette; it opens where you last left it. Otherwise the command palette is only for **Join a space**. Space settings, Live share updates and the Activity placeholder are removed on update.
+- **Updates** has one button. **Update to …** updates the mods and the engine on every connected machine. When the mods are current but an engine is behind or missing, the button reads **Update engines** and updates them all. The dialog no longer lists machines.
+
 ## 0.1.9 (2026-11-26)
 
 - **Join a space** is real. Paste a share link and five steps run one by one:

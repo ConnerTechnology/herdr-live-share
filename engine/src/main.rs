@@ -81,7 +81,13 @@ fn run(verb: &str, o: &Opts) -> Result<Value, ApiError> {
             let changed = if o.0.contains_key("uninstall") { claude::uninstall_hooks().map_err(io)? } else { claude::install_hooks().map_err(io)? };
             Ok(json!({ "changed": changed, "settings": claude::settings_path() }))
         }
-        "sync" | "timeline" | "say" | "doctor" | "drain" => {
+        "drain" => {
+            let at = o.checkout()?;
+            let b = herdr_session::session::binding(&at).ok_or_else(|| ApiError { kind: "NotShared", message: "This space is not shared.".into() })?;
+            let ledger_only = o.0.contains_key("ledger");
+            to_json(herdr_session::drain::drain(&at, &b, ledger_only).map_err(ApiError::from)?)
+        }
+        "sync" | "timeline" | "say" | "doctor" => {
             Err(ApiError { kind: "NotImplemented", message: format!("`{verb}` is not built yet") })
         }
         "" => Err(usage("usage: herdr-session <verb> [--cwd DIR] [options]")),

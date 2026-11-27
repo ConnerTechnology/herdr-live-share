@@ -2,6 +2,7 @@
 
 pub mod api;
 pub mod claude;
+pub mod drain;
 pub mod git;
 pub mod github;
 pub mod join;
