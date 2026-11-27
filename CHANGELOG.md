@@ -4,6 +4,8 @@ What changed in the most recent releases, for the people who install them. `scri
 
 ## Unreleased
 
+## 0.1.9 (2026-11-26)
+
 - **Join a space** is real. Paste a share link and five steps run one by one:
   1. Find the session on GitHub.
   2. Check your GitHub sign-in.
@@ -39,10 +41,6 @@ What changed in the most recent releases, for the people who install them. `scri
 
 - **Live share updates** in the command palette, laid out like Herdr's Settings → Updates: the mods' version with **What's new** and **Check now** (or **Update to …**), and the engine's version on every connected machine with **Install on …** or **Update on …** when needed.
 - Every share dialog ends with "herdr live share 0.1.4 · Up to date · **Check for updates**" (or a violet "Version 0.1.5 is available · **See update**"). Clicking it opens Live share updates, where **Check now** asks GitHub right away and **Update to …** installs.
-
-## 0.1.4 (2026-11-26)
-
-- The update check sends a `User-Agent`, which GitHub's API requires (requests without one get 403), gives up on herdr-app's request after 8 seconds and tries `curl`, and shows its result in the dialog ("Latest release 0.1.4 (checked with fetch)" or why it failed).
 
 ## Older releases
 
